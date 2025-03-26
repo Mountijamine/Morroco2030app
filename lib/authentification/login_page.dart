@@ -16,6 +16,8 @@ class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final formKey = GlobalKey<FormState>();
+  String? errorMessage;
+  bool isLoading = false;
 
   @override
   void dispose() {
@@ -25,14 +27,50 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> signInWithEmailAndPassword() async {
-    try {
-      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
-      );
-      print(userCredential.user?.uid);
-    } on FirebaseAuthException catch (e) {
-      print(e.message);
+    if (formKey.currentState!.validate()) {
+      setState(() {
+        errorMessage = null;
+        isLoading = true;
+      });
+      
+      try {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: emailController.text.trim(),
+          password: passwordController.text.trim(),
+        );
+        // No need to navigate - StreamBuilder in main.dart will handle this
+      } on FirebaseAuthException catch (e) {
+        setState(() {
+          errorMessage = _getMessageFromErrorCode(e.code);
+        });
+        print(e.message);
+      } catch (e) {
+        setState(() {
+          errorMessage = "An unexpected error occurred";
+        });
+        print(e);
+      } finally {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  String _getMessageFromErrorCode(String errorCode) {
+    switch (errorCode) {
+      case 'user-not-found':
+        return 'No user found with this email.';
+      case 'wrong-password':
+        return 'Wrong password provided.';
+      case 'invalid-email':
+        return 'Invalid email address format.';
+      case 'user-disabled':
+        return 'This user has been disabled.';
+      case 'too-many-requests':
+        return 'Too many attempts. Try again later.';
+      default:
+        return 'An error occurred. Please try again.';
     }
   }
 
@@ -59,6 +97,12 @@ class _LoginPageState extends State<LoginPage> {
                 decoration: const InputDecoration(
                   hintText: 'Email',
                 ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your email';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 15),
               TextFormField(
@@ -67,20 +111,39 @@ class _LoginPageState extends State<LoginPage> {
                   hintText: 'Password',
                 ),
                 obscureText: true,
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () async {
-                  await signInWithEmailAndPassword();
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your password';
+                  }
+                  return null;
                 },
-                child: const Text(
-                  'SIGN IN',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white,
+              ),
+              const SizedBox(height: 10),
+              if (errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Text(
+                    errorMessage!,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-              ),
+              const SizedBox(height: 10),
+              isLoading
+                  ? const CircularProgressIndicator()
+                  : ElevatedButton(
+                      onPressed: signInWithEmailAndPassword,
+                      child: const Text(
+                        'SIGN IN',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
               const SizedBox(height: 20),
               GestureDetector(
                 onTap: () {
