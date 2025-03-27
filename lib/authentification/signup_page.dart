@@ -1,11 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/authentification/login_page.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class SignUpPage extends StatefulWidget {
-  static route() => MaterialPageRoute(
-        builder: (context) => const SignUpPage(),
-      );
+  static route() => MaterialPageRoute(builder: (context) => const SignUpPage());
   const SignUpPage({super.key});
 
   @override
@@ -15,14 +15,18 @@ class SignUpPage extends StatefulWidget {
 class _SignUpPageState extends State<SignUpPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
   final formKey = GlobalKey<FormState>();
   String? errorMessage;
   bool isLoading = false;
+  bool showPassword = false;
+  bool showConfirmPassword = false;
 
   @override
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
+    confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -32,7 +36,7 @@ class _SignUpPageState extends State<SignUpPage> {
         errorMessage = null;
         isLoading = true;
       });
-      
+
       try {
         await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: emailController.text.trim(),
@@ -62,6 +66,54 @@ class _SignUpPageState extends State<SignUpPage> {
     }
   }
 
+  Future<void> signUpWithGoogle() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      // Trigger Google sign-in flow
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+
+      if (googleUser == null) {
+        // User canceled the sign-in
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
+
+      // Obtain auth details from request
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      // Create credential for Firebase
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in with Firebase
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      if (mounted) {
+        Navigator.pushReplacement(context, LoginPage.route());
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = "Google sign-in failed. Please try again.";
+      });
+      print("Google sign-in error: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
   String _getMessageFromErrorCode(String errorCode) {
     switch (errorCode) {
       case 'email-already-in-use':
@@ -80,7 +132,7 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    
+
     return Scaffold(
       body: Column(
         children: [
@@ -95,20 +147,18 @@ class _SignUpPageState extends State<SignUpPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                   
-                  Image.asset(
-                   'assets/images/logomaroc2030.png', // Path to your image
-                    height: 221,
-                    width: 440,
-                  ),
+                    Image.asset(
+                      'assets/images/logomaroc2030.png',
+                      height: 221,
+                      width: 440,
+                    ),
                     SizedBox(height: 10),
-                    
                   ],
                 ),
               ),
             ),
           ),
-          
+
           // Sign up form content
           Expanded(
             child: SingleChildScrollView(
@@ -142,17 +192,61 @@ class _SignUpPageState extends State<SignUpPage> {
                       const SizedBox(height: 15),
                       TextFormField(
                         controller: passwordController,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: 'Password',
                           prefixIcon: Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              showPassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                showPassword = !showPassword;
+                              });
+                            },
+                          ),
                         ),
-                        obscureText: true,
+                        obscureText: !showPassword,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Please enter your password';
                           }
                           if (value.length < 6) {
                             return 'Password must be at least 6 characters';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 15),
+                      TextFormField(
+                        controller: confirmPasswordController,
+                        decoration: InputDecoration(
+                          hintText: 'Confirm Password',
+                          prefixIcon: Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              showConfirmPassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                showConfirmPassword = !showConfirmPassword;
+                              });
+                            },
+                          ),
+                        ),
+                        obscureText: !showConfirmPassword,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please confirm your password';
+                          }
+                          if (value != passwordController.text) {
+                            return 'Passwords do not match';
                           }
                           return null;
                         },
@@ -173,21 +267,73 @@ class _SignUpPageState extends State<SignUpPage> {
                       const SizedBox(height: 20),
                       isLoading
                           ? const CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFDCB00)),
-                            )
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Color(0xFFFDCB00),
+                            ),
+                          )
                           : ElevatedButton(
-                              onPressed: createUserWithEmailAndPassword,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFDCB00),
-                              ),
-                              child: const Text(
-                                'SIGN UP',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
+                            onPressed: createUserWithEmailAndPassword,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF065d67),
+                            ),
+                            child: const Text(
+                              'SIGN UP',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white,
                               ),
                             ),
+                          ),
+
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Divider(
+                              color: Colors.grey.shade300,
+                              thickness: 1,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              'OR',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Divider(
+                              color: Colors.grey.shade300,
+                              thickness: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+                      OutlinedButton.icon(
+                        onPressed: signUpWithGoogle,
+                        icon: FaIcon(
+                          FontAwesomeIcons.google,
+                          size: 24,
+                          color: const Color(0xFF065d67),
+                        ),
+                        label: const Text(
+                          'Sign up with Google',
+                          style: TextStyle(color: Colors.black87, fontSize: 16),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 50),
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                      ),
+
                       const SizedBox(height: 20),
                       GestureDetector(
                         onTap: () {
@@ -200,11 +346,12 @@ class _SignUpPageState extends State<SignUpPage> {
                             children: [
                               TextSpan(
                                 text: 'Sign In',
-                                style:
-                                    Theme.of(context).textTheme.titleMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: const Color(0xFFFDCB00),
-                                        ),
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF065d67),
+                                ),
                               ),
                             ],
                           ),
@@ -228,27 +375,27 @@ class CurvedBottomClipper extends CustomClipper<Path> {
   Path getClip(Size size) {
     final path = Path();
     path.lineTo(0, size.height - 30);
-    
+
     // First curve (left side)
     path.quadraticBezierTo(
-      size.width / 4, 
-      size.height, 
-      size.width / 2, 
-      size.height - 15
+      size.width / 4,
+      size.height,
+      size.width / 2,
+      size.height - 15,
     );
-    
+
     // Second curve (right side)
     path.quadraticBezierTo(
-      size.width * 0.75, 
-      size.height - 30, 
-      size.width, 
-      size.height
+      size.width * 0.75,
+      size.height - 30,
+      size.width,
+      size.height,
     );
-    
+
     // Complete the path
     path.lineTo(size.width, 0);
     path.close();
-    
+
     return path;
   }
 
