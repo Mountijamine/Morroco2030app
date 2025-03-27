@@ -218,7 +218,7 @@ Future<void> signInWithGoogle() async {
                   child: Column(
                     children: [
                       const Text(
-                        'Welcome Back',
+                        'Welcome ',
                         style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
