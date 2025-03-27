@@ -1,11 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/authentification/signup_page.dart';
+import 'package:flutter_application_1/home_page.dart';
 
 class LoginPage extends StatefulWidget {
-  static route() => MaterialPageRoute(
-        builder: (context) => const LoginPage(),
-      );
+  static route() => MaterialPageRoute(builder: (context) => const LoginPage());
   const LoginPage({super.key});
 
   @override
@@ -32,27 +31,37 @@ class _LoginPageState extends State<LoginPage> {
         errorMessage = null;
         isLoading = true;
       });
-      
+
       try {
+        // Sign in with Firebase
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
         );
-        // No need to navigate - StreamBuilder in main.dart will handle this
+
+        // Explicitly navigate to home page after successful login
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const MyHomePage()),
+            (route) => false, // This removes all previous routes from the stack
+          );
+        }
       } on FirebaseAuthException catch (e) {
         setState(() {
           errorMessage = _getMessageFromErrorCode(e.code);
         });
-        print(e.message);
+        print("Login error: ${e.code} - ${e.message}");
       } catch (e) {
         setState(() {
           errorMessage = "An unexpected error occurred";
         });
-        print(e);
+        print("Unknown login error: $e");
       } finally {
-        setState(() {
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+        }
       }
     }
   }
@@ -86,17 +95,12 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               const Text(
                 'Sign In.',
-                style: TextStyle(
-                  fontSize: 50,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 50, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 30),
               TextFormField(
                 controller: emailController,
-                decoration: const InputDecoration(
-                  hintText: 'Email',
-                ),
+                decoration: const InputDecoration(hintText: 'Email'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter your email';
@@ -107,9 +111,7 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 15),
               TextFormField(
                 controller: passwordController,
-                decoration: const InputDecoration(
-                  hintText: 'Password',
-                ),
+                decoration: const InputDecoration(hintText: 'Password'),
                 obscureText: true,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -124,10 +126,7 @@ class _LoginPageState extends State<LoginPage> {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Text(
                     errorMessage!,
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(color: Colors.red, fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -135,15 +134,12 @@ class _LoginPageState extends State<LoginPage> {
               isLoading
                   ? const CircularProgressIndicator()
                   : ElevatedButton(
-                      onPressed: signInWithEmailAndPassword,
-                      child: const Text(
-                        'SIGN IN',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white,
-                        ),
-                      ),
+                    onPressed: signInWithEmailAndPassword,
+                    child: const Text(
+                      'SIGN IN',
+                      style: TextStyle(fontSize: 16, color: Colors.white),
                     ),
+                  ),
               const SizedBox(height: 20),
               GestureDetector(
                 onTap: () {
@@ -156,9 +152,8 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       TextSpan(
                         text: 'Sign Up',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),

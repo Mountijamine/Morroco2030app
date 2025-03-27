@@ -20,7 +20,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Task Management',
+      title: 'Morocco 2030',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         fontFamily: 'Cera Pro',
         elevatedButtonTheme: ElevatedButtonThemeData(
@@ -43,25 +44,32 @@ class MyApp extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderSide: const BorderSide(
-              // color: Pallete.gradient2,
               width: 3,
             ),
             borderRadius: BorderRadius.circular(10),
           ),
         ),
       ),
-      home: StreamBuilder(
+      home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
+          print("Auth state changed: ${snapshot.hasData ? 'User logged in' : 'No user'}");
+          
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
             );
           }
-          if (snapshot.data != null) {
+          
+          if (snapshot.hasData && snapshot.data != null) {
+            print("User is logged in: ${snapshot.data!.uid}");
             return const MyHomePage();
           }
-          return const SignUpPage();
+          
+          print("No user logged in, showing login page");
+          return const LoginPage();
         },
       ),
     );
