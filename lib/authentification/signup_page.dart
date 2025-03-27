@@ -29,44 +29,56 @@ class _SignUpPageState extends State<SignUpPage> {
     confirmPasswordController.dispose();
     super.dispose();
   }
+Future<void> createUserWithEmailAndPassword() async {
+  if (formKey.currentState!.validate()) {
+    setState(() {
+      errorMessage = null;
+      isLoading = true;
+    });
 
-  Future<void> createUserWithEmailAndPassword() async {
-    if (formKey.currentState!.validate()) {
-      setState(() {
-        errorMessage = null;
-        isLoading = true;
-      });
-
-      try {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim(),
+    try {
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+      
+      // Show success message before navigation
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sign up successful!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
         );
-        // After successful signup, navigate to LoginPage
+        
+        // Delay navigation slightly to allow the snackbar to be seen
+        await Future.delayed(const Duration(seconds: 1));
+        
+        // Navigate to login page
         if (mounted) {
           Navigator.pushReplacement(context, LoginPage.route());
         }
-      } on FirebaseAuthException catch (e) {
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        errorMessage = _getMessageFromErrorCode(e.code);
+      });
+      print("Signup error: ${e.code} - ${e.message}");
+    } catch (e) {
+      setState(() {
+        errorMessage = "An unexpected error occurred";
+      });
+      print("Unknown signup error: $e");
+    } finally {
+      if (mounted) {
         setState(() {
-          errorMessage = _getMessageFromErrorCode(e.code);
+          isLoading = false;
         });
-        print("Signup error: ${e.code} - ${e.message}");
-      } catch (e) {
-        setState(() {
-          errorMessage = "An unexpected error occurred";
-        });
-        print("Unknown signup error: $e");
-      } finally {
-        if (mounted) {
-          setState(() {
-            isLoading = false;
-          });
-        }
       }
     }
   }
-
-  Future<void> signUpWithGoogle() async {
+}  Future<void> signUpWithGoogle() async {
     setState(() {
       isLoading = true;
       errorMessage = null;
