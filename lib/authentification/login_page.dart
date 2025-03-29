@@ -4,6 +4,8 @@ import 'package:flutter_application_1/authentification/signup_page.dart';
 import 'package:flutter_application_1/home_page.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_1/profile/profileinfo.dart';
 
 import 'package:flutter_application_1/authentification/forgotpassword.dart';
 
@@ -30,28 +32,46 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  Future<void> signInWithEmailAndPassword() async {
-    if (formKey.currentState!.validate()) {
-      setState(() {
-        errorMessage = null;
-        isLoading = true;
-      });
 
-      try {
-        // Sign in with Firebase
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: emailController.text.trim(),
-          password: passwordController.text.trim(),
-        );
+// Update the signInWithEmailAndPassword method
+Future<void> signInWithEmailAndPassword() async {
+  if (formKey.currentState!.validate()) {
+    setState(() {
+      errorMessage = null;
+      isLoading = true;
+    });
 
-        // Explicitly navigate to home page after successful login
-        if (mounted) {
+    try {
+      // Sign in with Firebase
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      // Check if user has completed their profile
+      final user = FirebaseAuth.instance.currentUser;
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .get();
+
+      if (mounted) {
+        if (userDoc.exists && userDoc.data()?['hasCompletedProfile'] == true) {
+          // User has already filled out their profile, navigate to home
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => const MyHomePage()),
-            (route) => false, // This removes all previous routes from the stack
+            (route) => false,
+          );
+        } else {
+          // User has not filled out their profile, navigate to profile info page
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const ProfileInfoPage()),
+            (route) => false,
           );
         }
-      } on FirebaseAuthException catch (e) {
+      }
+    } on FirebaseAuthException catch (e) {
+      // ...existing error handling code...
         setState(() {
           errorMessage = _getMessageFromErrorCode(e.code);
         });
@@ -114,11 +134,26 @@ Future<void> signInWithGoogle() async {
     // Sign in with Firebase
     await FirebaseAuth.instance.signInWithCredential(credential);
 
+   final user = FirebaseAuth.instance.currentUser;
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user!.uid)
+        .get();
+
     if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const MyHomePage()),
-        (route) => false,
-      );
+      if (userDoc.exists && userDoc.data()?['hasCompletedProfile'] == true) {
+        // User has already filled out their profile, navigate to home
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const MyHomePage()),
+          (route) => false,
+        );
+      } else {
+        // User has not filled out their profile, navigate to profile info page
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const ProfileInfoPage()),
+          (route) => false,
+        );
+      }
     }
   } catch (e) {
     setState(() {

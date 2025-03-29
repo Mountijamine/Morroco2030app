@@ -1,6 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/authentification/login_page.dart';
+import 'package:intl/intl.dart'; 
+import 'package:flutter_application_1/profile/profileview.dart';
+
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
@@ -11,8 +14,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final user = FirebaseAuth.instance.currentUser;
-  // Placeholder for fidelity points
-  final int fidelityPoints = 120;
+  final int fidelityPoints = 10;
 
   Future<void> signOut() async {
     await FirebaseAuth.instance.signOut();
@@ -23,191 +25,202 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            // User icon on the left
-            CircleAvatar(
-              backgroundColor: Colors.grey.shade200,
-              child: Icon(
-                Icons.person,
-                color: Colors.grey.shade700,
-              ),
-            ),
-            const SizedBox(width: 10),
-            // Search bar in the middle
-            Expanded(
-              child: Container(
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            // Notification icon on the right
-            Stack(
-              alignment: Alignment.topRight,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.notifications),
-                  onPressed: () {
-                    // Handle notification tap
-                  },
-                ),
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 15,
-                      minHeight: 15,
-                    ),
-                    child: const Text(
-                      '3',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
+  return Scaffold(
+    appBar: AppBar(
+      automaticallyImplyLeading: false,
+      backgroundColor: Colors.yellow.shade700,
+      elevation: 0,
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const ProfileView()),
+              );
+            },
+            icon: const Icon(Icons.person, color: Colors.white),
+          ),
           IconButton(
             onPressed: signOut,
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, color: Colors.white),
           ),
         ],
       ),
+    ),
       body: Column(
         children: [
-          // Fidelity points display
+          // Fidelity Points Header
           Container(
+            color: Colors.yellow.shade700,
             padding: const EdgeInsets.all(16),
-            margin: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.blue.shade700, Colors.blue.shade500],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
               ),
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.3),
-                  spreadRadius: 2,
-                  blurRadius: 5,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Fidelity Points',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      // Icon on the left
+                      const Icon(
+                        Icons.monetization_on,
+                        color: Colors.orange,
+                        size: 32,
                       ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.star,
-                            color: Colors.amber,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$fidelityPoints pts',
-                            style: const TextStyle(
-                              color: Colors.white,
+                          const Text(
+                            'Nombre de points',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            DateFormat('dd/MM/yyyy').format(DateTime.now()), // Today's date
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 14,
                             ),
                           ),
                         ],
                       ),
+                    ],
+                  ),
+                  // Points on the right
+                  Text(
+                    '$fidelityPoints,00',
+                    style: const TextStyle(
+                      color: Colors.orange,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Filter Section
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            child: Row(
+              children: [
+                const Text(
+                  'Villes 🌍',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 10),
-                const LinearProgressIndicator(
-                  value: 0.6, // Example progress value
-                  backgroundColor: Colors.white30,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                const Spacer(),
+                FilterChip(
+                  label: const Text('All'),
+                  selected: true,
+                  onSelected: (bool value) {},
                 ),
-                const SizedBox(height: 8),
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '80 more points to next level',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                    Text(
-                      'Level 2',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: const Text('Casablanca'),
+                  selected: false,
+                  onSelected: (bool value) {},
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: const Text('Tanger'),
+                  selected: false,
+                  onSelected: (bool value) {},
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: const Text('Marrakech'),
+                  selected: false,
+                  onSelected: (bool value) {},
                 ),
               ],
             ),
           ),
-          // Existing content can go here
+          // City Cards
           Expanded(
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Welcome!',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Logged in as: ${user?.email ?? 'User'}',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ],
-              ),
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                _buildCityCard(
+                  imageUrl:
+                      'https://example.com/casablanca.jpg', // Replace with actual image URL
+                  cityName: 'Casablanca',
+                  distance: '300km',
+                ),
+                const SizedBox(height: 16),
+                _buildCityCard(
+                  imageUrl:
+                      'https://example.com/tanger.jpg', // Replace with actual image URL
+                  cityName: 'Tanger',
+                  distance: '250km',
+                ),
+                const SizedBox(height: 16),
+                _buildCityCard(
+                  imageUrl:
+                      'https://example.com/marrakech.jpg', // Replace with actual image URL
+                  cityName: 'Marrakech',
+                  distance: '400km',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCityCard({
+    required String imageUrl,
+    required String cityName,
+    required String distance,
+  }) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      elevation: 4,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+            child: Image.network(
+              imageUrl,
+              height: 150,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      cityName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      distance,
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+                const Icon(Icons.favorite_border, color: Colors.red),
+              ],
             ),
           ),
         ],
