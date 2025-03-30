@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/profile/profileinfo.dart';
+import 'package:flutter_application_1/profile/editprofile.dart';
+import 'package:flutter_application_1/support/support_chatbot.dart';
 
 class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
@@ -108,7 +109,7 @@ class _ProfileViewState extends State<ProfileView> {
                             child: Padding(
                               padding: const EdgeInsets.all(16.0),
                               child: Row(
-                                children: [ 
+                                children: [
                                   // Profile image
                                   Container(
                                     decoration: BoxDecoration(
@@ -196,7 +197,7 @@ class _ProfileViewState extends State<ProfileView> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const ProfileInfoPage(),
+                                builder: (context) => const EditProfilePage(),
                               ),
                             ).then((_) => _loadUserData());
                           },
@@ -206,10 +207,17 @@ class _ProfileViewState extends State<ProfileView> {
                         // General Section
                         _buildSectionTitle('General'),
                         _buildListTile(
-                          icon: Icons.help_outline,
-                          title: 'Support',
-                          onTap: () {},
-                        ),
+  icon: Icons.help_outline,
+  title: 'Support',
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SupportChatbotScreen(),
+      ),
+    );
+  },
+),
                         _buildListTile(
                           icon: Icons.shield_outlined,
                           title: 'Terms of Service',
