@@ -12,6 +12,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_application_1/utils/url_utils.dart';
 import 'dart:math';
 import 'package:flutter/services.dart'; 
+import 'package:flutter_application_1/city/city_detail_screen.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
@@ -584,7 +585,7 @@ Future<void> _loadUserLocation() async {
 
 Widget _buildCityCard(City city) {
   bool isFavorited = city.favoritedBy.contains(user?.uid);
-  
+
   // Calculate distance if user location is available
   String distanceText = '';
   if (_userLocation != null) {
@@ -597,151 +598,120 @@ Widget _buildCityCard(City city) {
       distanceText = '${distance.toStringAsFixed(1)} km';
     }
   }
-  
-  return Card(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-    elevation: 4,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // City image
-        Stack(
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-              child: city.imageBase64 != null && city.imageBase64!.isNotEmpty
-                  // If Base64 image is available, use it
-                  ? Image.memory(
-                      base64Decode(city.imageBase64!),
-                      height: 180,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        height: 180,
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.error),
-                      ),
-                    )
-                  // Otherwise use the URL (for backward compatibility)
-                  : CachedNetworkImage(
-                      imageUrl: city.imageUrl,
-                      height: 180,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        height: 180,
-                        color: Colors.grey[300],
-                        child: const Center(child: CircularProgressIndicator()),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        height: 180,
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.error),
-                      ),
-                    ),
-            ),
-            // Type indicator
-            Positioned(
-              top: 8,
-              left: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  city.type,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-            // Map location button
-            Positioned(
-              top: 8,
-              right: 8,
-              child: CircleAvatar(
-                backgroundColor: Colors.white,
-                child: IconButton(
-                  icon: const Icon(Icons.map, color: Color(0xFF065d67)),
-                  onPressed: () => _openGoogleMaps(city.location),
-                ),
-              ),
-            ),
-          ],
+
+  return GestureDetector(
+    onTap: () {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => CityDetailScreen(city: city),
         ),
-        
-        // City details
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      );
+    },
+    child: Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      elevation: 4,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // City image
+          Stack(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    city.name,
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                child: city.imageBase64 != null && city.imageBase64!.isNotEmpty
+                    ? Image.memory(
+                        base64Decode(city.imageBase64!),
+                        height: 180,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: city.imageUrl,
+                        height: 180,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => const Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                        errorWidget: (context, url, error) => const Icon(Icons.error),
+                      ),
+              ),
+              // Type indicator
+              Positioned(
+                top: 8,
+                left: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    city.type,
                     style: const TextStyle(
-                      fontSize: 20,
+                      color: Colors.white,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(
-                      isFavorited ? Icons.favorite : Icons.favorite_border,
-                      color: isFavorited ? Colors.red : Colors.grey,
-                    ),
-                    onPressed: () => _toggleFavorite(city),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                city.description,
-                style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: 14,
                 ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.people, size: 16, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${city.favoritedBy.length} favoris',
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14,
-                    ),
+            ],
+          ),
+          // City details
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  city.name,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
-                  
-                  // Add distance indicator if available
-                  if (distanceText.isNotEmpty) ...[
-                    const SizedBox(width: 16),
-                    const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  city.description,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 14,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.people, size: 16, color: Colors.grey),
                     const SizedBox(width: 4),
                     Text(
-                      distanceText,
+                      '${city.favoritedBy.length} favoris',
                       style: const TextStyle(
                         color: Colors.grey,
                         fontSize: 14,
                       ),
                     ),
+                    if (distanceText.isNotEmpty) ...[
+                      const SizedBox(width: 16),
+                      const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Text(
+                        distanceText,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }
