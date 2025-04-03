@@ -10,10 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-   // TEMPORARY: Reset onboarding status to see it again
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setBool('onboardingComplete', false);
-  
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
