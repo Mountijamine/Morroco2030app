@@ -1,9 +1,6 @@
-import 'dart:convert';
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-class Restaurant {
+class Location {
   final String id;
   final String name;
   final String cityId;
@@ -12,13 +9,15 @@ class Restaurant {
   final GeoPoint location;
   final List<String> imageUrls;
   final String description;
-  final String cuisine;
+  final String type; // hotel, apartment, hostel
   final String phoneNumber;
   final String website;
-  final List<String> menuItems;
-  final double averagePrice; // Add this line
+  final double pricePerNight;
+  final List<String> amenities;
+  final int numberOfRooms;
+  final bool isAvailable;
 
-  Restaurant({
+  Location({
     required this.id,
     required this.name,
     required this.cityId,
@@ -27,29 +26,35 @@ class Restaurant {
     required this.location,
     required this.imageUrls,
     required this.description,
-    required this.cuisine,
-    this.phoneNumber = '',
-    this.website = '',
-    this.menuItems = const [],
-    this.averagePrice = 0.0, // Add this line
+    required this.type,
+    required this.phoneNumber,
+    required this.website,
+    required this.pricePerNight,
+    required this.amenities,
+    required this.numberOfRooms,
+    this.isAvailable = true,
   });
 
-  factory Restaurant.fromFirestore(DocumentSnapshot doc) {
+  factory Location.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    return Restaurant(
+    return Location(
       id: doc.id,
       name: data['name'] ?? '',
       cityId: data['cityId'] ?? '',
       address: data['address'] ?? '',
       rating: (data['rating'] ?? 0.0).toDouble(),
       location: data['location'] ?? const GeoPoint(0, 0),
-      imageUrls: List<String>.from(data['imageUrls'] ?? []),
+      imageUrls: (data['imageUrls'] as List<dynamic>?)
+          ?.map((dynamic item) => item.toString())
+          .toList() ?? [],
       description: data['description'] ?? '',
-      cuisine: data['cuisine'] ?? '',
+      type: data['type'] ?? '',
       phoneNumber: data['phoneNumber'] ?? '',
       website: data['website'] ?? '',
-      menuItems: List<String>.from(data['menuItems'] ?? []),
-      averagePrice: (data['averagePrice'] ?? 0.0).toDouble(), // Add this line
+      pricePerNight: (data['pricePerNight'] ?? 0.0).toDouble(),
+      amenities: List<String>.from(data['amenities'] ?? []),
+      numberOfRooms: data['numberOfRooms'] ?? 0,
+      isAvailable: data['isAvailable'] ?? true,
     );
   }
 
@@ -62,21 +67,13 @@ class Restaurant {
       'location': location,
       'imageUrls': imageUrls,
       'description': description,
-      'cuisine': cuisine,
+      'type': type,
       'phoneNumber': phoneNumber,
       'website': website,
-      'menuItems': menuItems,
-      'averagePrice': averagePrice, // Add this line
+      'pricePerNight': pricePerNight,
+      'amenities': amenities,
+      'numberOfRooms': numberOfRooms,
+      'isAvailable': isAvailable,
     };
-  }
-
-  LatLng get latLng => LatLng(location.latitude, location.longitude);
-
-  // Helper method to check if an image is base64 encoded
-  static bool isBase64Image(String source) {
-    return source.startsWith('data:image') ||
-        RegExp(
-          r'^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$',
-        ).hasMatch(source);
   }
 }

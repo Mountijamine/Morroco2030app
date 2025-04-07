@@ -16,6 +16,11 @@ import 'package:flutter_application_1/restaurant/menu_detail_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import 'package:flutter_application_1/location/add_location_screen.dart';
+import 'package:flutter_application_1/location/location_service.dart';
+import 'package:flutter_application_1/location/location_model.dart';
+import 'package:flutter_application_1/location/location_detail_screen.dart';
+
 class CityDetailScreen extends StatefulWidget {
   final City city;
 
@@ -34,6 +39,17 @@ class _CityDetailScreenState extends State<CityDetailScreen>
   late AnimationController _animationController;
   final RestaurantService _restaurantService = RestaurantService();
   List<Restaurant> _restaurants = [];
+  final LocationService _locationService = LocationService();
+  List<Location> _locations = [];
+
+  // Add filter variables
+  List<Location> _allLocations = [];
+  List<Location> _filteredLocations = [];
+  String _selectedLocationType = 'All';
+  RangeValues _priceRange = const RangeValues(0, 5000); // Default price range
+  double _minPrice = 0;
+  double _maxPrice = 5000;
+  bool _onlyShowAvailable = true;
 
   // Main app color
   final Color primaryColor = const Color(0xFFFDCB00);
@@ -50,6 +66,8 @@ class _CityDetailScreenState extends State<CityDetailScreen>
     // Initialize with restaurants if that's the default category
     if (selectedCategory == 'Restau & café') {
       _loadRestaurants();
+    } else if (selectedCategory == 'Location') {
+      _loadLocations();
     }
   }
 
@@ -97,6 +115,44 @@ class _CityDetailScreenState extends State<CityDetailScreen>
       _animationController.forward();
     } catch (e) {
       print('Error loading restaurants: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadLocations() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final locations = await _locationService.getLocationsForCity(widget.city);
+
+      // Find min and max prices for the range slider
+      if (locations.isNotEmpty) {
+        _minPrice = locations
+            .map((loc) => loc.pricePerNight)
+            .reduce((a, b) => a < b ? a : b);
+        _maxPrice = locations
+            .map((loc) => loc.pricePerNight)
+            .reduce((a, b) => a > b ? a : b);
+
+        // Add some padding to the max price
+        _maxPrice = (_maxPrice * 1.2).roundToDouble();
+        // Update price range
+        _priceRange = RangeValues(_minPrice, _maxPrice);
+      }
+
+      setState(() {
+        _allLocations = locations;
+        _applyFilters(); // Apply filters to populate _filteredLocations
+        isLoading = false;
+      });
+      _animationController.reset();
+      _animationController.forward();
+    } catch (e) {
+      print('Error loading locations: $e');
       setState(() {
         isLoading = false;
       });
@@ -194,6 +250,285 @@ class _CityDetailScreenState extends State<CityDetailScreen>
         ),
       );
     }
+  }
+
+  // Add method to apply filters
+  void _applyFilters() {
+    setState(() {
+      _filteredLocations =
+          _allLocations.where((location) {
+            // Filter by type
+            bool typeMatch =
+                _selectedLocationType == 'All' ||
+                location.type.toLowerCase() ==
+                    _selectedLocationType.toLowerCase();
+
+            // Filter by price range
+            bool priceMatch =
+                location.pricePerNight >= _priceRange.start &&
+                location.pricePerNight <= _priceRange.end;
+
+            // Filter by availability if needed
+            bool availabilityMatch =
+                !_onlyShowAvailable || location.isAvailable;
+
+            return typeMatch && priceMatch && availabilityMatch;
+          }).toList();
+    });
+  }
+
+  // Method to show the filter dialog
+  void _showFilterDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder:
+          (context) => Container(
+            height: MediaQuery.of(context).size.height * 0.7,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 5,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Filter Locations',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: secondaryColor,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                        color: Colors.grey[600],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Filter options (scrollable)
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Location type filter
+                        const Text(
+                          'Location Type',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildLocationTypeSelector(),
+
+                        const SizedBox(height: 24),
+
+                        // Price range filter
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Price Range (DH)',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              '${_priceRange.start.toInt()} - ${_priceRange.end.toInt()} DH',
+                              style: TextStyle(
+                                color: secondaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        RangeSlider(
+                          values: _priceRange,
+                          min: _minPrice,
+                          max: _maxPrice,
+                          divisions: 10,
+                          activeColor: secondaryColor,
+                          inactiveColor: Colors.grey[300],
+                          labels: RangeLabels(
+                            '${_priceRange.start.toInt()} DH',
+                            '${_priceRange.end.toInt()} DH',
+                          ),
+                          onChanged: (RangeValues values) {
+                            setState(() {
+                              _priceRange = values;
+                            });
+                          },
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Availability filter
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _onlyShowAvailable,
+                              onChanged: (value) {
+                                setState(() {
+                                  _onlyShowAvailable = value ?? true;
+                                });
+                              },
+                              activeColor: secondaryColor,
+                            ),
+                            const Text(
+                              'Only show available locations',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Apply and Reset buttons
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 5,
+                        offset: const Offset(0, -1),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedLocationType = 'All';
+                              _priceRange = RangeValues(_minPrice, _maxPrice);
+                              _onlyShowAvailable = true;
+                            });
+                            _applyFilters();
+                            Navigator.pop(context);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: primaryColor),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: Text(
+                            'Reset',
+                            style: TextStyle(color: primaryColor),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _applyFilters();
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: const Text('Apply Filters'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  // Helper method to build location type selector
+  Widget _buildLocationTypeSelector() {
+    final locationTypes = [
+      'All',
+      'Hotel',
+      'Apartment',
+      'Hostel',
+      'Villa',
+      'Riad',
+    ];
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children:
+          locationTypes.map((type) {
+            final isSelected = _selectedLocationType == type;
+
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedLocationType = type;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected ? secondaryColor : Colors.grey[200],
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  type,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black87,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+    );
   }
 
   @override
@@ -546,6 +881,8 @@ class _CityDetailScreenState extends State<CityDetailScreen>
         // Load restaurants when that category is selected
         if (category == 'Restau & café') {
           _loadRestaurants();
+        } else if (category == 'Location') {
+          _loadLocations();
         } else {
           // Reset animation for other categories
           _animationController.reset();
@@ -853,8 +1190,156 @@ class _CityDetailScreenState extends State<CityDetailScreen>
               ),
         ],
       );
+    } else if (selectedCategory == 'Location') {
+      return Column(
+        children: [
+          // Add header with Add and Filter buttons
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Locations in ${widget.city.name}',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+              Row(
+                children: [
+                  // Filter button
+                  IconButton(
+                    onPressed: _showFilterDialog,
+                    icon: Icon(Icons.filter_list, color: secondaryColor),
+                    tooltip: 'Filter locations',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 16),
+                  // Add button
+                  TextButton.icon(
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => AddLocationScreen(city: widget.city),
+                        ),
+                      );
+                      if (result == true) {
+                        _loadLocations();
+                      }
+                    },
+                    icon: Icon(Icons.add_circle, color: primaryColor, size: 20),
+                    label: Text(
+                      'Add',
+                      style: TextStyle(
+                        color: primaryColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      backgroundColor: primaryColor.withOpacity(0.1),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // Show filter chip if any filter is applied
+          if (_selectedLocationType != 'All' ||
+              _priceRange.start > _minPrice ||
+              _priceRange.end < _maxPrice)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.filter_list, size: 16, color: secondaryColor),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Filtered: ${_filteredLocations.length} results',
+                    style: TextStyle(
+                      color: secondaryColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedLocationType = 'All';
+                        _priceRange = RangeValues(_minPrice, _maxPrice);
+                        _onlyShowAvailable = true;
+                        _applyFilters();
+                      });
+                    },
+                    child: const Text('Clear filters'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: secondaryColor,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      minimumSize: Size.zero,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          const SizedBox(height: 16),
+
+          // Show empty state or location list
+          _filteredLocations.isEmpty && !isLoading
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.home, size: 48, color: Colors.grey[400]),
+                    const SizedBox(height: 16),
+                    Text(
+                      _allLocations.isEmpty
+                          ? 'No locations found in ${widget.city.name}'
+                          : 'No locations match your filters',
+                      style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 12),
+                    if (_allLocations.isEmpty)
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) =>
+                                      AddLocationScreen(city: widget.city),
+                            ),
+                          );
+                          if (result == true) {
+                            _loadLocations();
+                          }
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add first location'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                  ],
+                ),
+              )
+              : Column(
+                children:
+                    _filteredLocations
+                        .map((location) => _buildLocationItem(location))
+                        .toList(),
+              ),
+        ],
+      );
     } else {
-      // Return placeholder items for other categories
       return _buildModernPlaceholderItems();
     }
   }
@@ -873,7 +1358,6 @@ class _CityDetailScreenState extends State<CityDetailScreen>
       child: AnimatedBuilder(
         animation: _animationController,
         builder: (context, child) {
-          // Use the same animation as in your placeholder items
           return SlideTransition(
             position: Tween<Offset>(
               begin: const Offset(0.5, 0),
@@ -881,14 +1365,14 @@ class _CityDetailScreenState extends State<CityDetailScreen>
             ).animate(
               CurvedAnimation(
                 parent: _animationController,
-                curve: Interval(0.2, 0.8, curve: Curves.easeOutCubic),
+                curve: const Interval(0.2, 0.8, curve: Curves.easeOutCubic),
               ),
             ),
             child: FadeTransition(
               opacity: Tween<double>(begin: 0, end: 1).animate(
                 CurvedAnimation(
                   parent: _animationController,
-                  curve: Interval(0.2, 0.8, curve: Curves.easeOut),
+                  curve: const Interval(0.2, 0.8, curve: Curves.easeOut),
                 ),
               ),
               child: child,
@@ -911,67 +1395,57 @@ class _CityDetailScreenState extends State<CityDetailScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Restaurant image with location button overlay
               Stack(
                 children: [
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(16),
                     ),
-                    child:
-                        restaurant.imageUrls.isNotEmpty
-                            ? CachedNetworkImage(
-                              imageUrl: restaurant.imageUrls.first,
-                              height: 120,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              placeholder:
-                                  (context, url) => Container(
-                                    height: 120,
-                                    color: Colors.grey[200],
-                                    child: Center(
-                                      child: CircularProgressIndicator(
-                                        color: primaryColor,
+                    child: SizedBox(
+                      height: 120,
+                      width: double.infinity,
+                      child:
+                          restaurant.imageUrls.isNotEmpty
+                              ? CachedNetworkImage(
+                                imageUrl: restaurant.imageUrls.first,
+                                fit: BoxFit.cover,
+                                placeholder:
+                                    (context, url) => Container(
+                                      color: Colors.grey[200],
+                                      child: const Center(
+                                        child: CircularProgressIndicator(),
                                       ),
                                     ),
-                                  ),
-                              errorWidget:
-                                  (context, url, error) => Container(
-                                    height: 120,
-                                    color: Colors.grey[200],
-                                    child: Icon(
-                                      Icons.restaurant_menu,
-                                      size: 40,
-                                      color: Colors.grey[400],
+                                errorWidget:
+                                    (context, url, error) => Container(
+                                      color: Colors.grey[200],
+                                      child: const Icon(
+                                        Icons.image_not_supported,
+                                        size: 40,
+                                        color: Colors.grey,
+                                      ),
                                     ),
-                                  ),
-                            )
-                            : Container(
-                              height: 120,
-                              width: double.infinity,
-                              color: Colors.grey[200],
-                              child: Icon(
-                                Icons.restaurant_menu,
-                                size: 40,
-                                color: Colors.grey[400],
+                              )
+                              : Container(
+                                color: Colors.grey[200],
+                                child: const Icon(
+                                  Icons.image_not_supported,
+                                  size: 40,
+                                  color: Colors.grey,
+                                ),
                               ),
-                            ),
+                    ),
                   ),
-
-                  // Map location button - KEEP THIS
                   Positioned(
                     top: 10,
-                    right:
-                        10, // Moved from left to right since we removed the like button
+                    right: 10,
                     child: InkWell(
                       onTap: () async {
                         final latitude = restaurant.location.latitude;
                         final longitude = restaurant.location.longitude;
-
                         final url = Uri.parse(
                           'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude',
                         );
-
                         if (await canLaunchUrl(url)) {
                           await launchUrl(url);
                         }
@@ -999,8 +1473,6 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                   ),
                 ],
               ),
-
-              // Restaurant details content
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -1033,7 +1505,7 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                               Icon(Icons.star, size: 16, color: primaryColor),
                               const SizedBox(width: 4),
                               Text(
-                                '${restaurant.rating}',
+                                restaurant.rating.toString(),
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
@@ -1047,7 +1519,8 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      restaurant.cuisine,
+                      restaurant.cuisine
+                          .toUpperCase(), // Change cuisineType to cuisine
                       style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                     ),
                     const SizedBox(height: 12),
@@ -1071,21 +1544,13 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                           ),
                         ),
                         const SizedBox(width: 8),
-                        IconButton(
-                          icon: Icon(Icons.menu_book, color: secondaryColor),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (context) => MenuDetailScreen(
-                                      restaurant: restaurant,
-                                    ),
-                              ),
-                            );
-                          },
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
+                        Text(
+                          '${restaurant.averagePrice} DH', // Or use the correct property name from your Restaurant model
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: secondaryColor,
+                          ),
                         ),
                       ],
                     ),
@@ -1096,6 +1561,206 @@ class _CityDetailScreenState extends State<CityDetailScreen>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLocationItem(Location location) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LocationDetailScreen(location: location),
+          ),
+        );
+      },
+      child: AnimatedBuilder(
+        animation: _animationController,
+        builder: (context, child) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.5, 0),
+              end: Offset.zero,
+            ).animate(
+              CurvedAnimation(
+                parent: _animationController,
+                curve: const Interval(0.2, 0.8, curve: Curves.easeOutCubic),
+              ),
+            ),
+            child: FadeTransition(
+              opacity: Tween<double>(begin: 0, end: 1).animate(
+                CurvedAnimation(
+                  parent: _animationController,
+                  curve: const Interval(0.2, 0.8, curve: Curves.easeOut),
+                ),
+              ),
+              child: child,
+            ),
+          );
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                    child: SizedBox(
+                      height: 120,
+                      width: double.infinity,
+                      child: _buildImageDisplay(
+                        location.imageUrls.isNotEmpty
+                            ? location.imageUrls.first
+                            : '',
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: InkWell(
+                      onTap: () async {
+                        final latitude = location.location.latitude;
+                        final longitude = location.location.longitude;
+                        final url = Uri.parse(
+                          'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude',
+                        );
+                        if (await canLaunchUrl(url)) {
+                          await launchUrl(url);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.directions,
+                          size: 20,
+                          color: secondaryColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            location.name,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: primaryColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.star, size: 16, color: primaryColor),
+                              const SizedBox(width: 4),
+                              Text(
+                                location.rating.toString(),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      location.type.toUpperCase(),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            location.address,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${location.pricePerNight.toStringAsFixed(0)} DH/night',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: secondaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      color: Colors.grey[200],
+      child: Icon(Icons.home, size: 40, color: Colors.grey[400]),
     );
   }
 
@@ -1116,5 +1781,32 @@ class _CityDetailScreenState extends State<CityDetailScreen>
 
   Color _getCategoryColor(String category) {
     return secondaryColor; // Using a consistent color scheme
+  }
+
+  Widget _buildImageDisplay(String imageString) {
+    try {
+      if (imageString.isNotEmpty) {
+        // Clean the base64 string if it has any prefixes or whitespace
+        String cleanBase64 = imageString;
+        if (imageString.contains(',')) {
+          cleanBase64 = imageString.split(',').last;
+        }
+        cleanBase64 = cleanBase64.trim();
+
+        return Image.memory(
+          base64Decode(cleanBase64),
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (context, error, stackTrace) {
+            print('Error loading image: $error');
+            return _buildPlaceholder();
+          },
+        );
+      }
+    } catch (e) {
+      print('Error decoding image: $e');
+    }
+    return _buildPlaceholder();
   }
 }
