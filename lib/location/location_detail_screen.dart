@@ -41,25 +41,26 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: primaryColor,
         elevation: 0,
+        title: Text(
+          widget.location.name,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.map, color: Colors.white),
-            onPressed: _openInMaps,
-          ),
-          IconButton(
-            icon: const Icon(Icons.phone, color: Colors.white),
-            onPressed: _callLocation,
-          ),
-          // Add this new IconButton
-          IconButton(
-            icon: const Icon(Icons.edit, color: Colors.white),
-            onPressed: () => _editLocationImages(context),
+            icon: const Icon(Icons.card_giftcard, color: Colors.white),
+            onPressed: () {
+              // Action pour les points de fidélité
+            },
           ),
         ],
       ),
@@ -256,6 +257,63 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                 },
               ),
             ),
+
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Photos',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: widget.location.imageUrls.length,
+                      itemBuilder: (context, index) {
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _currentImageIndex = index;
+                            });
+                          },
+                          child: Container(
+                            width: 100,
+                            height: 100,
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: _currentImageIndex == index
+                                    ? primaryColor
+                                    : Colors.transparent,
+                                width: 2,
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: _buildThumbnailImage(widget.location.imageUrls[index]),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+            Divider(color: Colors.grey[300], thickness: 1),
+            const SizedBox(height: 16),
 
             Padding(
               padding: const EdgeInsets.all(16),
@@ -473,6 +531,70 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                 ],
               ),
             ),
+
+            // Section Adresse
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Adresse',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on, color: primaryColor, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          widget.location.address,
+                          style: const TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Section Contact
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Personne à contacter',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.person, color: primaryColor, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          widget.location.phoneNumber,
+                          style: const TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -532,9 +654,8 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
       await launchUrl(url);
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Could not open website')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open website')));
       }
     }
   }
@@ -572,7 +693,7 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
 
   Future<void> _editLocationImages(BuildContext context) async {
     final ImagePicker picker = ImagePicker();
-    
+
     // Show options dialog
     showModalBottomSheet(
       context: context,
@@ -585,12 +706,12 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                 title: const Text('Add more images'),
                 onTap: () async {
                   Navigator.pop(context);
-                  
+
                   try {
                     final List<XFile> images = await picker.pickMultiImage();
                     if (images.isNotEmpty) {
                       List<String> newImages = [];
-                      
+
                       // Show loading indicator
                       showDialog(
                         context: context,
@@ -602,51 +723,58 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                               children: [
                                 CircularProgressIndicator(),
                                 SizedBox(height: 16),
-                                Text('Processing images...')
+                                Text('Processing images...'),
                               ],
                             ),
                           );
-                        }
+                        },
                       );
-                      
+
                       // Process images
                       for (var image in images) {
                         final bytes = await image.readAsBytes();
                         final base64Image = base64Encode(bytes);
                         newImages.add(base64Image);
                       }
-                      
+
                       // Close loading dialog
                       if (mounted) Navigator.of(context).pop();
-                      
+
                       // Update location with new images
-                      final updatedImageList = [...widget.location.imageUrls, ...newImages];
+                      final updatedImageList = [
+                        ...widget.location.imageUrls,
+                        ...newImages,
+                      ];
                       await FirebaseFirestore.instance
                           .collection('locations')
                           .doc(widget.location.id)
                           .update({'imageUrls': updatedImageList});
-                      
+
                       // Refresh page (you may need to implement a proper refresh mechanism)
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Images added successfully')),
+                          const SnackBar(
+                            content: Text('Images added successfully'),
+                          ),
                         );
                         // Refresh the screen or navigate back and forth
-                        final refreshedLocation = await FirebaseFirestore.instance
-                            .collection('locations')
-                            .doc(widget.location.id)
-                            .get();
-                        
+                        final refreshedLocation =
+                            await FirebaseFirestore.instance
+                                .collection('locations')
+                                .doc(widget.location.id)
+                                .get();
+
                         if (mounted && refreshedLocation.exists) {
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => LocationDetailScreen(
-                                location: Location.fromMap(
-                                  refreshedLocation.data()!,
-                                  refreshedLocation.id,
-                                ),
-                              ),
+                              builder:
+                                  (context) => LocationDetailScreen(
+                                    location: Location.fromMap(
+                                      refreshedLocation.data()!,
+                                      refreshedLocation.id,
+                                    ),
+                                  ),
                             ),
                           );
                         }
@@ -710,7 +838,9 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                           right: 0,
                           child: IconButton(
                             icon: Icon(
-                              isSelected ? Icons.check_circle : Icons.remove_circle,
+                              isSelected
+                                  ? Icons.check_circle
+                                  : Icons.remove_circle,
                               color: isSelected ? Colors.green : Colors.red,
                             ),
                             onPressed: () {
@@ -736,87 +866,106 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  onPressed: selectedIndices.isEmpty 
-                    ? null 
-                    : () async {
-                        try {
-                          // Show loading indicator
-                          showDialog(
-                            context: context,
-                            barrierDismissible: false,
-                            builder: (context) => const AlertDialog(
-                              content: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  CircularProgressIndicator(),
-                                  SizedBox(height: 16),
-                                  Text('Removing images...')
-                                ],
-                              ),
-                            )
-                          );
+                  onPressed:
+                      selectedIndices.isEmpty
+                          ? null
+                          : () async {
+                            try {
+                              // Show loading indicator
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder:
+                                    (context) => const AlertDialog(
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          CircularProgressIndicator(),
+                                          SizedBox(height: 16),
+                                          Text('Removing images...'),
+                                        ],
+                                      ),
+                                    ),
+                              );
 
-                          // Create new list without the selected images
-                          List<String> updatedImages = [];
-                          for (int i = 0; i < widget.location.imageUrls.length; i++) {
-                            if (!selectedIndices.contains(i)) {
-                              updatedImages.add(widget.location.imageUrls[i]);
-                            }
-                          }
+                              // Create new list without the selected images
+                              List<String> updatedImages = [];
+                              for (
+                                int i = 0;
+                                i < widget.location.imageUrls.length;
+                                i++
+                              ) {
+                                if (!selectedIndices.contains(i)) {
+                                  updatedImages.add(
+                                    widget.location.imageUrls[i],
+                                  );
+                                }
+                              }
 
-                          // Update in Firestore
-                          await FirebaseFirestore.instance
-                              .collection('locations')
-                              .doc(widget.location.id)
-                              .update({'imageUrls': updatedImages});
+                              // Update in Firestore
+                              await FirebaseFirestore.instance
+                                  .collection('locations')
+                                  .doc(widget.location.id)
+                                  .update({'imageUrls': updatedImages});
 
-                          // Close loading dialog and image removal dialog
-                          if (mounted) Navigator.of(context).pop();
-                          if (mounted) Navigator.of(context).pop();
+                              // Close loading dialog and image removal dialog
+                              if (mounted) Navigator.of(context).pop();
+                              if (mounted) Navigator.of(context).pop();
 
-                          // Show success message
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Images removed successfully')),
-                            );
-                            
-                            // Refresh the screen with updated location data
-                            final refreshedLocation = await FirebaseFirestore.instance
-                                .collection('locations')
-                                .doc(widget.location.id)
-                                .get();
-                            
-                            if (mounted && refreshedLocation.exists) {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => LocationDetailScreen(
-                                    location: Location.fromMap(
-                                      refreshedLocation.data()!,
-                                      refreshedLocation.id,
+                              // Show success message
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Images removed successfully',
                                     ),
                                   ),
-                                ),
-                              );
+                                );
+
+                                // Refresh the screen with updated location data
+                                final refreshedLocation =
+                                    await FirebaseFirestore.instance
+                                        .collection('locations')
+                                        .doc(widget.location.id)
+                                        .get();
+
+                                if (mounted && refreshedLocation.exists) {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (context) => LocationDetailScreen(
+                                            location: Location.fromMap(
+                                              refreshedLocation.data()!,
+                                              refreshedLocation.id,
+                                            ),
+                                          ),
+                                    ),
+                                  );
+                                }
+                              }
+                            } catch (e) {
+                              // Close loading dialog if an error occurs
+                              if (mounted) Navigator.of(context).pop();
+
+                              print('Error removing images: $e');
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error removing images: $e'),
+                                  ),
+                                );
+                              }
                             }
-                          }
-                        } catch (e) {
-                          // Close loading dialog if an error occurs
-                          if (mounted) Navigator.of(context).pop();
-                          
-                          print('Error removing images: $e');
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Error removing images: $e')),
-                            );
-                          }
-                        }
-                      },
-                  child: const Text('Remove Selected', style: TextStyle(color: Colors.white)),
+                          },
+                  child: const Text(
+                    'Remove Selected',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             );
-          }
+          },
         );
       },
     );
