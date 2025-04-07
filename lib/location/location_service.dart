@@ -45,6 +45,20 @@ class LocationService {
     }
   }
 
+  // Update location images
+  Future<void> updateLocationImages(String locationId, List<String> imageUrls) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('locations')
+          .doc(locationId)
+          .update({'imageUrls': imageUrls});
+      return;
+    } catch (e) {
+      print('Error updating location images: $e');
+      throw Exception('Failed to update location images');
+    }
+  }
+
   // Delete a location
   Future<void> deleteLocation(String locationId) async {
     try {

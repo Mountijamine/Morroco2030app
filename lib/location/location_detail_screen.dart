@@ -7,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_application_1/location/location_model.dart';
 import 'dart:convert';
 import 'dart:typed_data'; // Add this import for Uint8List
+import 'package:image_picker/image_picker.dart'; // Add this import for ImagePicker
 
 class LocationDetailScreen extends StatefulWidget {
   final Location location;
@@ -55,6 +56,11 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
             icon: const Icon(Icons.phone, color: Colors.white),
             onPressed: _callLocation,
           ),
+          // Add this new IconButton
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.white),
+            onPressed: () => _editLocationImages(context),
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -67,43 +73,46 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                 SizedBox(
                   height: 300,
                   child: FlutterCarousel(
-                    items: widget.location.imageUrls.map((imageString) {
-                      return Builder(
-                        builder: (context) {
-                          try {
-                            // Remove any data URL prefix if present
-                            String cleanBase64 = imageString;
-                            if (imageString.contains(',')) {
-                              cleanBase64 = imageString.split(',').last;
-                            }
-                            
-                            // Remove any whitespace
-                            cleanBase64 = cleanBase64.trim();
-                            
-                            final Uint8List bytes = base64Decode(cleanBase64);
-                            
-                            return Image.memory(
-                              bytes,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              errorBuilder: (context, error, stackTrace) {
-                                print('Carousel image error: $error');
+                    items:
+                        widget.location.imageUrls.map((imageString) {
+                          return Builder(
+                            builder: (context) {
+                              try {
+                                // Remove any data URL prefix if present
+                                String cleanBase64 = imageString;
+                                if (imageString.contains(',')) {
+                                  cleanBase64 = imageString.split(',').last;
+                                }
+
+                                // Remove any whitespace
+                                cleanBase64 = cleanBase64.trim();
+
+                                final Uint8List bytes = base64Decode(
+                                  cleanBase64,
+                                );
+
+                                return Image.memory(
+                                  bytes,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    print('Carousel image error: $error');
+                                    return Container(
+                                      color: Colors.grey[200],
+                                      child: const Icon(Icons.error),
+                                    );
+                                  },
+                                );
+                              } catch (e) {
+                                print('Carousel base64 error: $e');
                                 return Container(
                                   color: Colors.grey[200],
                                   child: const Icon(Icons.error),
                                 );
-                              },
-                            );
-                          } catch (e) {
-                            print('Carousel base64 error: $e');
-                            return Container(
-                              color: Colors.grey[200],
-                              child: const Icon(Icons.error),
-                            );
-                          }
-                        },
-                      );
-                    }).toList(),
+                              }
+                            },
+                          );
+                        }).toList(),
                     options: CarouselOptions(
                       height: 300,
                       aspectRatio: 16 / 9,
@@ -122,6 +131,63 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                         setState(() => _currentImageIndex = index);
                       },
                       scrollDirection: Axis.horizontal,
+                    ),
+                  ),
+                ),
+                // Left arrow for previous image
+                Positioned(
+                  left: 10,
+                  top: 0,
+                  bottom: 0,
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _currentImageIndex =
+                            _currentImageIndex > 0
+                                ? _currentImageIndex - 1
+                                : widget.location.imageUrls.length - 1;
+                      });
+                      // Access the carousel controller and animate to the new page
+                      // This would require adding a carousel controller
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back_ios,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Right arrow for next image
+                Positioned(
+                  right: 10,
+                  top: 0,
+                  bottom: 0,
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _currentImageIndex =
+                            (_currentImageIndex + 1) %
+                            widget.location.imageUrls.length;
+                      });
+                      // Access the carousel controller and animate to the new page
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.arrow_forward_ios,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -149,6 +215,46 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                   ),
                 ),
               ],
+            ),
+
+            // Add this widget below the carousel:
+            SizedBox(
+              height: 70,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: widget.location.imageUrls.length,
+                itemBuilder: (context, index) {
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _currentImageIndex = index;
+                      });
+                      // You would need a carousel controller to jump to this page
+                    },
+                    child: Container(
+                      width: 70,
+                      height: 70,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color:
+                              _currentImageIndex == index
+                                  ? primaryColor
+                                  : Colors.transparent,
+                          width: 2,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: _buildThumbnailImage(
+                          widget.location.imageUrls[index],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
 
             Padding(
@@ -431,5 +537,288 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
         ).showSnackBar(const SnackBar(content: Text('Could not open website')));
       }
     }
+  }
+
+  Widget _buildThumbnailImage(String imageString) {
+    try {
+      String cleanBase64 = imageString;
+      if (imageString.contains(',')) {
+        cleanBase64 = imageString.split(',').last;
+      }
+      cleanBase64 = cleanBase64.trim();
+
+      final Uint8List bytes = base64Decode(cleanBase64);
+
+      return Image.memory(
+        bytes,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.grey[200],
+            child: const Icon(Icons.broken_image, size: 20),
+          );
+        },
+      );
+    } catch (e) {
+      print('Error displaying thumbnail: $e');
+      return Container(
+        color: Colors.grey[200],
+        child: const Icon(Icons.broken_image, size: 20),
+      );
+    }
+  }
+
+  // Add this function to the _LocationDetailScreenState class
+
+  Future<void> _editLocationImages(BuildContext context) async {
+    final ImagePicker picker = ImagePicker();
+    
+    // Show options dialog
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: Icon(Icons.add_photo_alternate, color: primaryColor),
+                title: const Text('Add more images'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  
+                  try {
+                    final List<XFile> images = await picker.pickMultiImage();
+                    if (images.isNotEmpty) {
+                      List<String> newImages = [];
+                      
+                      // Show loading indicator
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (BuildContext context) {
+                          return const AlertDialog(
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(height: 16),
+                                Text('Processing images...')
+                              ],
+                            ),
+                          );
+                        }
+                      );
+                      
+                      // Process images
+                      for (var image in images) {
+                        final bytes = await image.readAsBytes();
+                        final base64Image = base64Encode(bytes);
+                        newImages.add(base64Image);
+                      }
+                      
+                      // Close loading dialog
+                      if (mounted) Navigator.of(context).pop();
+                      
+                      // Update location with new images
+                      final updatedImageList = [...widget.location.imageUrls, ...newImages];
+                      await FirebaseFirestore.instance
+                          .collection('locations')
+                          .doc(widget.location.id)
+                          .update({'imageUrls': updatedImageList});
+                      
+                      // Refresh page (you may need to implement a proper refresh mechanism)
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Images added successfully')),
+                        );
+                        // Refresh the screen or navigate back and forth
+                        final refreshedLocation = await FirebaseFirestore.instance
+                            .collection('locations')
+                            .doc(widget.location.id)
+                            .get();
+                        
+                        if (mounted && refreshedLocation.exists) {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => LocationDetailScreen(
+                                location: Location.fromMap(
+                                  refreshedLocation.data()!,
+                                  refreshedLocation.id,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  } catch (e) {
+                    print('Error adding images: $e');
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error adding images: $e')),
+                      );
+                    }
+                  }
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.delete, color: Colors.red),
+                title: const Text('Remove images'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showImageRemovalDialog(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showImageRemovalDialog(BuildContext context) {
+    // Track which images are selected for removal
+    List<int> selectedIndices = [];
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Select images to remove'),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 300, // Add a fixed height to avoid overflow
+                child: GridView.builder(
+                  shrinkWrap: true,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    mainAxisSpacing: 5,
+                    crossAxisSpacing: 5,
+                  ),
+                  itemCount: widget.location.imageUrls.length,
+                  itemBuilder: (context, index) {
+                    final isSelected = selectedIndices.contains(index);
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _buildThumbnailImage(widget.location.imageUrls[index]),
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: IconButton(
+                            icon: Icon(
+                              isSelected ? Icons.check_circle : Icons.remove_circle,
+                              color: isSelected ? Colors.green : Colors.red,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                if (isSelected) {
+                                  selectedIndices.remove(index);
+                                } else {
+                                  selectedIndices.add(index);
+                                }
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  onPressed: selectedIndices.isEmpty 
+                    ? null 
+                    : () async {
+                        try {
+                          // Show loading indicator
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) => const AlertDialog(
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  CircularProgressIndicator(),
+                                  SizedBox(height: 16),
+                                  Text('Removing images...')
+                                ],
+                              ),
+                            )
+                          );
+
+                          // Create new list without the selected images
+                          List<String> updatedImages = [];
+                          for (int i = 0; i < widget.location.imageUrls.length; i++) {
+                            if (!selectedIndices.contains(i)) {
+                              updatedImages.add(widget.location.imageUrls[i]);
+                            }
+                          }
+
+                          // Update in Firestore
+                          await FirebaseFirestore.instance
+                              .collection('locations')
+                              .doc(widget.location.id)
+                              .update({'imageUrls': updatedImages});
+
+                          // Close loading dialog and image removal dialog
+                          if (mounted) Navigator.of(context).pop();
+                          if (mounted) Navigator.of(context).pop();
+
+                          // Show success message
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Images removed successfully')),
+                            );
+                            
+                            // Refresh the screen with updated location data
+                            final refreshedLocation = await FirebaseFirestore.instance
+                                .collection('locations')
+                                .doc(widget.location.id)
+                                .get();
+                            
+                            if (mounted && refreshedLocation.exists) {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => LocationDetailScreen(
+                                    location: Location.fromMap(
+                                      refreshedLocation.data()!,
+                                      refreshedLocation.id,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          // Close loading dialog if an error occurs
+                          if (mounted) Navigator.of(context).pop();
+                          
+                          print('Error removing images: $e');
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error removing images: $e')),
+                            );
+                          }
+                        }
+                      },
+                  child: const Text('Remove Selected', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
   }
 }

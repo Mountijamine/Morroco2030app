@@ -58,6 +58,26 @@ class Location {
     );
   }
 
+  static Location fromMap(Map<String, dynamic> data, String id) {
+    return Location(
+      id: id,
+      name: data['name'] ?? '',
+      cityId: data['cityId'] ?? '',
+      address: data['address'] ?? '',
+      rating: (data['rating'] ?? 0.0).toDouble(),
+      location: data['location'] as GeoPoint? ?? const GeoPoint(0, 0),
+      imageUrls: List<String>.from(data['imageUrls'] ?? []),
+      description: data['description'] ?? '',
+      type: data['type'] ?? '',
+      phoneNumber: data['phoneNumber'] ?? '',
+      website: data['website'] ?? '',
+      pricePerNight: (data['pricePerNight'] ?? 0.0).toDouble(),
+      amenities: List<String>.from(data['amenities'] ?? []),
+      numberOfRooms: data['numberOfRooms'] ?? 0,
+      isAvailable: data['isAvailable'] ?? true,
+    );
+  }
+
   Map<String, dynamic> toFirestore() {
     return {
       'name': name,

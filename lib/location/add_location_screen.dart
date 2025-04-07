@@ -7,6 +7,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_application_1/city/city_model.dart';
 import 'package:flutter_application_1/location/location_model.dart';
 import 'package:flutter_application_1/location/location_service.dart';
+import 'dart:typed_data';
+import 'package:flutter_application_1/utils/image_utils.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_application_1/location/location_detail_screen.dart';
 
 class AddLocationScreen extends StatefulWidget {
   final City city;
@@ -39,42 +43,228 @@ class _AddLocationScreenState extends State<AddLocationScreen> {
 
   String _selectedType = 'hotel';
   bool _isLoading = false;
+  bool _isProcessingImages = false;
+  final ScrollController _imageScrollController = ScrollController();
 
-  final List<String> _locationTypes = ['hotel', 'apartment', 'hostel'];
+  final List<String> _locationTypes = [
+    'hotel',
+    'apartment',
+    'hostel',
+    'villa',
+    'riad',
+  ];
 
   Future<void> _pickImage() async {
     try {
+      // Show options in bottom sheet
+      showModalBottomSheet(
+        context: context,
+        builder: (BuildContext context) {
+          return SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                ListTile(
+                  leading: Icon(
+                    Icons.photo_library,
+                    color: const Color(0xFF065d67),
+                  ),
+                  title: const Text('Select from gallery'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    _pickMultipleFromGallery();
+                  },
+                ),
+                ListTile(
+                  leading: Icon(
+                    Icons.camera_alt,
+                    color: const Color(0xFF065d67),
+                  ),
+                  title: const Text('Take a photo'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    _takePhoto();
+                  },
+                ),
+                if (_selectedImages.isNotEmpty)
+                  ListTile(
+                    leading: Icon(Icons.delete, color: Colors.red),
+                    title: const Text('Clear all images'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showClearImagesDialog();
+                    },
+                  ),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      print('Error with image picker: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error accessing image picker: $e')),
+      );
+    }
+  }
+
+  Future<void> _pickMultipleFromGallery() async {
+    try {
       final List<XFile> images = await _picker.pickMultiImage();
       if (images.isNotEmpty) {
-        setState(() => _isLoading = true);
-        
-        List<String> base64Images = [];
-        for (var image in images) {
-          File imageFile = File(image.path);
-          List<int> imageBytes = await imageFile.readAsBytes();
-          String base64Image = base64Encode(imageBytes);
-          
-          // Store the clean base64 string (no prefix, no whitespace)
-          base64Images.add(base64Image.trim());
-        }
-        
         setState(() {
-          _selectedImages = base64Images;
+          _isProcessingImages = true;
+          _isLoading = true;
+        });
+
+        // Show progress dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text('Processing ${images.length} images...'),
+                ],
+              ),
+            );
+          },
+        );
+
+        // Process images in batches to avoid UI freezing
+        List<String> newImages = [];
+        for (var image in images) {
+          // Read image file
+          File imageFile = File(image.path);
+
+          // Compress the image to reduce size
+          List<int> imageBytes = await imageFile.readAsBytes();
+
+          // Convert to base64
+          String base64Image = base64Encode(imageBytes);
+          newImages.add(base64Image);
+        }
+
+        // Close progress dialog
+        Navigator.of(context).pop();
+
+        setState(() {
+          _selectedImages.addAll(newImages);
+          _isProcessingImages = false;
           _isLoading = false;
         });
-        
-        // Debug first image if available
-        if (base64Images.isNotEmpty) {
-          print('First image encoded successfully. Length: ${base64Images.first.length}');
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${images.length} images added')),
+        );
+
+        // Scroll to end of image list to show the new images
+        if (_selectedImages.length > 2) {
+          Future.delayed(const Duration(milliseconds: 300), () {
+            _imageScrollController.animateTo(
+              _imageScrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          });
         }
       }
     } catch (e) {
+      // Close progress dialog if open
+      if (_isProcessingImages) {
+        Navigator.of(context).pop();
+      }
+
       print('Error picking images: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking images: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error selecting images: $e')));
+
+      setState(() {
+        _isProcessingImages = false;
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    try {
+      final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
+      if (photo != null) {
+        setState(() => _isLoading = true);
+
+        // Read image file
+        File imageFile = File(photo.path);
+
+        // Convert to base64
+        List<int> imageBytes = await imageFile.readAsBytes();
+        String base64Image = base64Encode(imageBytes);
+
+        setState(() {
+          _selectedImages.add(base64Image);
+          _isLoading = false;
+        });
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Photo added')));
+      }
+    } catch (e) {
+      print('Error taking photo: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error taking photo: $e')));
       setState(() => _isLoading = false);
     }
+  }
+
+  void _showClearImagesDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Clear all images?'),
+          content: const Text(
+            'This will remove all selected images. This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _selectedImages.clear();
+                });
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('All images cleared')),
+                );
+              },
+              child: const Text(
+                'Clear All',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Image removed')));
   }
 
   @override
@@ -268,15 +458,34 @@ class _AddLocationScreenState extends State<AddLocationScreen> {
                   height: 100,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
+                    controller: _imageScrollController,
                     itemCount: _selectedImages.length,
                     itemBuilder: (context, index) {
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
-                        child: Image.memory(
-                          base64Decode(_selectedImages[index]),
-                          width: 100,
-                          height: 100,
-                          fit: BoxFit.cover,
+                        child: Stack(
+                          children: [
+                            ImageUtils.buildBase64Image(
+                              _selectedImages[index],
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                            ),
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: GestureDetector(
+                                onTap: () => _removeImage(index),
+                                child: Container(
+                                  color: Colors.black54,
+                                  child: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       );
                     },
@@ -405,6 +614,18 @@ class _AddLocationScreenState extends State<AddLocationScreen> {
         }
       }
     }
+  }
+
+  // Add this helper method for displaying base64 images
+  Widget _buildImageDisplay(String imageString) {
+    return ImageUtils.buildBase64Image(imageString);
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      color: Colors.grey[200],
+      child: Icon(Icons.home, size: 40, color: Colors.grey[400]),
+    );
   }
 
   @override
