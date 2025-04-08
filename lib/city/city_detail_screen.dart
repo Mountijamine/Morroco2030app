@@ -843,11 +843,13 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                                     'Locations in ${widget.city.name}',
                                     style: TextStyle(
                                       fontSize: 16,
-                                      color: Colors.grey[700],
+                                      color:
+                                          Colors
+                                              .grey[700], // Fixed text color from white to grey
                                     ),
                                   ),
                                   const SizedBox(height: 12),
-                                  // Single line horizontal scrollable location type filter
+                                  // Single line horizontal scrollable location type filter with white background
                                   Container(
                                     height: 40,
                                     child: SingleChildScrollView(
@@ -887,12 +889,20 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                                                       color:
                                                           isSelected
                                                               ? secondaryColor
-                                                              : Colors
-                                                                  .grey[200],
+                                                              : Colors.white,
                                                       borderRadius:
                                                           BorderRadius.circular(
                                                             20,
                                                           ),
+                                                      border:
+                                                          !isSelected
+                                                              ? Border.all(
+                                                                color:
+                                                                    Colors
+                                                                        .grey[300]!,
+                                                                width: 1,
+                                                              )
+                                                              : null,
                                                     ),
                                                     child: Text(
                                                       type,
@@ -1037,19 +1047,6 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                     curve: Curves.easeOutCubic,
                   ),
                 ),
-              ),
-              child: FadeTransition(
-                opacity: Tween<double>(begin: 0, end: 1).animate(
-                  CurvedAnimation(
-                    parent: _animationController,
-                    curve: Interval(
-                      index * 0.2,
-                      0.6 + index * 0.1,
-                      curve: Curves.easeOut,
-                    ),
-                  ),
-                ),
-                child: child,
               ),
             );
           },
@@ -1232,7 +1229,8 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => AddLocationScreen(city: widget.city),
+                      builder:
+                          (context) => AddLocationScreen(city: widget.city),
                     ),
                   );
                   if (result == true) {
@@ -1273,27 +1271,24 @@ class _CityDetailScreenState extends State<CityDetailScreen>
           // Location list
           _filteredLocations.isEmpty && !isLoading
               ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.home_work,
-                        size: 48,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No locations found in ${widget.city.name}',
-                        style: TextStyle(fontSize: 16, color: Colors.grey[700]),
-                      ),
-                    ],
-                  ),
-                )
-              : Column(
-                  children: _filteredLocations
-                      .map((location) => _buildLocationItem(location))
-                      .toList(),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.home_work, size: 48, color: Colors.grey[400]),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No locations found in ${widget.city.name}',
+                      style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                    ),
+                  ],
                 ),
+              )
+              : Column(
+                children:
+                    _filteredLocations
+                        .map((location) => _buildLocationItem(location))
+                        .toList(),
+              ),
         ],
       );
     } else {
@@ -1548,41 +1543,149 @@ class _CityDetailScreenState extends State<CityDetailScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image de la location
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
-              child:
-                  location.imageUrls.isNotEmpty
-                      ? CachedNetworkImage(
-                        imageUrl: location.imageUrls.first,
-                        fit: BoxFit.cover,
-                        height: 120,
-                        width: double.infinity,
-                      )
-                      : Container(
-                        height: 120,
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.image_not_supported),
+            // Image de la location with improved display
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  child: SizedBox(
+                    height: 180, // Increased height for better visibility
+                    width: double.infinity,
+                    child: Builder(
+                      builder: (context) {
+                        // Debug print to check if imageUrls actually has content
+                        print(
+                          'Location ${location.name} has ${location.imageUrls.length} images',
+                        );
+                        if (location.imageUrls.isNotEmpty) {
+                          return CachedNetworkImage(
+                            imageUrl: location.imageUrls.first,
+                            fit: BoxFit.cover,
+                            placeholder:
+                                (context, url) => Container(
+                                  color: Colors.grey[200],
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      color: primaryColor,
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                            errorWidget: (context, url, error) {
+                              // Print error for debugging
+                              print('Image error for ${location.name}: $error');
+                              return _buildDefaultLocationImage(location.type);
+                            },
+                          );
+                        } else {
+                          // No image URLs available
+                          return _buildDefaultLocationImage(location.type);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                // Location type badge
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: secondaryColor,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      location.type,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
                       ),
+                    ),
+                  ),
+                ),
+                // Add directions button
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: InkWell(
+                    onTap: () async {
+                      final latitude = location.location.latitude;
+                      final longitude = location.location.longitude;
+                      final url = Uri.parse(
+                        'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude',
+                      );
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.directions,
+                        size: 20,
+                        color: secondaryColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    location.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    location.type,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          location.name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      // Price display
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${location.pricePerNight} DH',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -1666,5 +1769,51 @@ class _CityDetailScreenState extends State<CityDetailScreen>
       print('Error decoding image: $e');
     }
     return _buildPlaceholder();
+  }
+
+  Widget _buildDefaultLocationImage(String locationType) {
+    IconData iconData;
+
+    // Choose appropriate icon based on location type
+    switch (locationType.toLowerCase()) {
+      case 'hotel':
+        iconData = Icons.hotel;
+        break;
+      case 'hostel':
+        iconData = Icons.night_shelter;
+        break;
+      case 'apartment':
+        iconData = Icons.apartment;
+        break;
+      case 'villa':
+        iconData = Icons.house;
+        break;
+      case 'riad':
+        iconData = Icons.home_work;
+        break;
+      case 'auberge':
+        iconData = Icons.home;
+        break;
+      default:
+        iconData = Icons.home;
+    }
+
+    return Container(
+      color: Colors.grey[200],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(iconData, size: 60, color: secondaryColor.withOpacity(0.7)),
+          const SizedBox(height: 8),
+          Text(
+            locationType,
+            style: TextStyle(
+              color: Colors.grey[700],
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
