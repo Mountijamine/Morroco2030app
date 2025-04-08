@@ -8,6 +8,7 @@ class MenuItem {
   final String imageUrl; // Can be base64 or URL
   final String category; // For grouping menu items
   final bool isAvailable;
+  final bool isBestseller; // New field
   final String restaurantId; // Reference to restaurant
   final String restaurantName; // Store restaurant name for convenience
   final String cityId; // Reference to city
@@ -20,6 +21,7 @@ class MenuItem {
     this.imageUrl = '',
     this.category = '',
     this.isAvailable = true,
+    this.isBestseller = false, // Default to false
     required this.restaurantId,
     required this.restaurantName,
     required this.cityId,
@@ -35,6 +37,7 @@ class MenuItem {
       imageUrl: data['imageUrl'] ?? '',
       category: data['category'] ?? '',
       isAvailable: data['isAvailable'] ?? true,
+      isBestseller: data['isBestseller'] ?? false, // Add bestseller field
       restaurantId: data['restaurantId'] ?? '',
       restaurantName: data['restaurantName'] ?? '',
       cityId: data['cityId'] ?? '',
@@ -49,6 +52,7 @@ class MenuItem {
       'imageUrl': imageUrl,
       'category': category,
       'isAvailable': isAvailable,
+      'isBestseller': isBestseller, // Add bestseller field
       'restaurantId': restaurantId,
       'restaurantName': restaurantName,
       'cityId': cityId,

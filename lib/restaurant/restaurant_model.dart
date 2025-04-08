@@ -15,8 +15,9 @@ class Restaurant {
   final String cuisine;
   final String phoneNumber;
   final String website;
-  final List<String>
-  menuItems; // This will just be menu item names for display in Restaurant detail
+  final List<String> menuItems;
+  final String type;
+  final List<String> favoritedBy; // Added this field
 
   Restaurant({
     required this.id,
@@ -31,6 +32,8 @@ class Restaurant {
     this.phoneNumber = '',
     this.website = '',
     this.menuItems = const [],
+    this.type = 'Restaurant',
+    this.favoritedBy = const [], // Initialize with empty list
   });
 
   factory Restaurant.fromFirestore(DocumentSnapshot doc) {
@@ -48,6 +51,10 @@ class Restaurant {
       phoneNumber: data['phoneNumber'] ?? '',
       website: data['website'] ?? '',
       menuItems: List<String>.from(data['menuItems'] ?? []),
+      type: data['type'] ?? 'Restaurant',
+      favoritedBy: List<String>.from(
+        data['favoritedBy'] ?? [],
+      ), // Parse favoritedBy
     );
   }
 
@@ -64,6 +71,8 @@ class Restaurant {
       'phoneNumber': phoneNumber,
       'website': website,
       'menuItems': menuItems,
+      'type': type,
+      'favoritedBy': favoritedBy, // Include favoritedBy in Firestore data
     };
   }
 

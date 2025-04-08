@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/city/city_model.dart';
 import 'package:flutter_application_1/restaurant/restaurant_model.dart';
 import 'package:flutter_application_1/restaurant/restaurant_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'dart:convert';
 
 class AddRestaurantScreen extends StatefulWidget {
   final City city;
@@ -27,8 +30,19 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
   final TextEditingController _latitudeController = TextEditingController();
   final TextEditingController _longitudeController = TextEditingController();
   final TextEditingController _ratingController = TextEditingController();
-  final TextEditingController _menuItemsController = TextEditingController();
-  final TextEditingController _imageUrlsController = TextEditingController();
+
+  // List to store selected images
+  List<File> _selectedImages = [];
+  final ImagePicker _picker = ImagePicker();
+
+  String _selectedType = 'Restaurant';
+  final List<String> _restaurantTypes = [
+    'Restaurant',
+    'Café',
+    'Fast Food',
+    'Bakery',
+    'Bar',
+  ];
 
   bool _isLoading = false;
 
@@ -47,9 +61,36 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
     _latitudeController.dispose();
     _longitudeController.dispose();
     _ratingController.dispose();
-    _menuItemsController.dispose();
-    _imageUrlsController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImages() async {
+    final List<XFile>? images = await _picker.pickMultiImage();
+
+    if (images != null && images.isNotEmpty) {
+      setState(() {
+        _selectedImages.addAll(images.map((image) => File(image.path)));
+      });
+    }
+  }
+
+  // Convert images to base64 strings
+  List<String> _getImageBase64Strings() {
+    List<String> base64Images = [];
+
+    for (File image in _selectedImages) {
+      final bytes = image.readAsBytesSync();
+      final base64Image = base64Encode(bytes);
+      base64Images.add('data:image/jpeg;base64,$base64Image');
+    }
+
+    return base64Images;
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
   }
 
   Future<void> _submitForm() async {
@@ -57,21 +98,8 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
       setState(() => _isLoading = true);
 
       try {
-        // Parse menu items (comma-separated)
-        List<String> menuItems =
-            _menuItemsController.text
-                .split(',')
-                .map((item) => item.trim())
-                .where((item) => item.isNotEmpty)
-                .toList();
-
-        // Parse image URLs (comma-separated)
-        List<String> imageUrls =
-            _imageUrlsController.text
-                .split(',')
-                .map((url) => url.trim())
-                .where((url) => url.isNotEmpty)
-                .toList();
+        // Convert images to base64
+        List<String> imageUrls = _getImageBase64Strings();
 
         // Create restaurant object
         final restaurant = Restaurant(
@@ -84,7 +112,7 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
             double.parse(_latitudeController.text),
             double.parse(_longitudeController.text),
           ),
-          menuItems: menuItems,
+          menuItems: [], // Empty list since we removed menu items section
           imageUrls: imageUrls,
           description: _descriptionController.text.trim(),
           cuisine: _cuisineController.text.trim(),
@@ -244,6 +272,36 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
                                   return 'Cuisine type is required';
                                 }
                                 return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Restaurant Type dropdown
+                            DropdownButtonFormField<String>(
+                              value: _selectedType,
+                              decoration: InputDecoration(
+                                labelText: 'Establishment Type *',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.store,
+                                  color: primaryColor,
+                                ),
+                              ),
+                              items:
+                                  _restaurantTypes.map((String type) {
+                                    return DropdownMenuItem<String>(
+                                      value: type,
+                                      child: Text(type),
+                                    );
+                                  }).toList(),
+                              onChanged: (String? newValue) {
+                                if (newValue != null) {
+                                  setState(() {
+                                    _selectedType = newValue;
+                                  });
+                                }
                               },
                             ),
                           ],
@@ -437,7 +495,7 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
 
                       const SizedBox(height: 24),
 
-                      // Menu section
+                      // Images section
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -456,129 +514,136 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Menu Items',
+                              'Restaurant Images',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: secondaryColor,
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Enter menu item names separated by commas (you can add detailed menu items with prices later)',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
+                            const SizedBox(height: 16),
+
+                            // Image selection button
+                            InkWell(
+                              onTap: _pickImages,
+                              child: Container(
+                                width: double.infinity,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child:
+                                    _selectedImages.isEmpty
+                                        ? Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.restaurant,
+                                              size: 40,
+                                              color: primaryColor,
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              'Tap to add restaurant images',
+                                              style: TextStyle(
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                        : const Center(
+                                          child: Text(
+                                            'Tap to add more images',
+                                            style: TextStyle(
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        ),
                               ),
                             ),
                             const SizedBox(height: 16),
 
-                            // Menu items field
-                            TextFormField(
-                              controller: _menuItemsController,
-                              decoration: InputDecoration(
-                                labelText: 'Menu Items *',
-                                hintText: 'Couscous, Tagine, Mint Tea',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                prefixIcon: Icon(
-                                  Icons.menu_book,
-                                  color: primaryColor,
-                                ),
+                            // Selected images preview
+                            if (_selectedImages.isNotEmpty)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Selected Images (${_selectedImages.length})',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: secondaryColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  GridView.builder(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 3,
+                                          crossAxisSpacing: 8,
+                                          mainAxisSpacing: 8,
+                                        ),
+                                    itemCount: _selectedImages.length,
+                                    itemBuilder: (context, index) {
+                                      return Stack(
+                                        children: [
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              image: DecorationImage(
+                                                image: FileImage(
+                                                  _selectedImages[index],
+                                                ),
+                                                fit: BoxFit.cover,
+                                              ),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: 5,
+                                            right: 5,
+                                            child: GestureDetector(
+                                              onTap: () => _removeImage(index),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(
+                                                  4,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black
+                                                      .withOpacity(0.7),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.close,
+                                                  color: Colors.white,
+                                                  size: 16,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                ],
                               ),
-                              maxLines: 2,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Enter at least one menu item';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Note: After adding the restaurant, you can add detailed menu items with prices from the restaurant details page',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: primaryColor,
-                                fontStyle: FontStyle.italic,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
 
-                      const SizedBox(height: 24),
-
-                      // Image URLs section
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.1),
-                              spreadRadius: 1,
-                              blurRadius: 5,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Image URLs',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: secondaryColor,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Enter direct image URLs or base64 encoded images separated by commas',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Image URLs field
-                            TextFormField(
-                              controller: _imageUrlsController,
-                              decoration: InputDecoration(
-                                labelText: 'Image URLs or Base64 *',
-                                hintText:
-                                    'https://example.com/image1.jpg, data:image/jpeg;base64,...',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                prefixIcon: Icon(
-                                  Icons.image,
-                                  color: primaryColor,
+                            if (_selectedImages.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Text(
+                                  'At least one image is required',
+                                  style: TextStyle(
+                                    color: Colors.red[400],
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
-                              maxLines: 3,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Enter at least one image URL or base64 string';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Note: For base64 images, include the data:image prefix',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
                           ],
                         ),
                       ),
@@ -658,9 +723,11 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: _submitForm,
+                          onPressed:
+                              _selectedImages.isEmpty ? null : _submitForm,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryColor,
+                            disabledBackgroundColor: Colors.grey,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
