@@ -16,7 +16,9 @@ class Restaurant {
   final String phoneNumber;
   final String website;
   final List<String> menuItems;
-  final double averagePrice; // Add this line
+  final double averagePrice; // From your local changes
+  final String type;
+  final List<String> favoritedBy; // From remote changes
 
   Restaurant({
     required this.id,
@@ -31,7 +33,9 @@ class Restaurant {
     this.phoneNumber = '',
     this.website = '',
     this.menuItems = const [],
-    this.averagePrice = 0.0, // Add this line
+    this.averagePrice = 0.0,
+    this.type = 'Restaurant',
+    this.favoritedBy = const [],
   });
 
   factory Restaurant.fromFirestore(DocumentSnapshot doc) {
@@ -49,7 +53,9 @@ class Restaurant {
       phoneNumber: data['phoneNumber'] ?? '',
       website: data['website'] ?? '',
       menuItems: List<String>.from(data['menuItems'] ?? []),
-      averagePrice: (data['averagePrice'] ?? 0.0).toDouble(), // Add this line
+      averagePrice: (data['averagePrice'] ?? 0.0).toDouble(),
+      type: data['type'] ?? 'Restaurant',
+      favoritedBy: List<String>.from(data['favoritedBy'] ?? []),
     );
   }
 
@@ -66,7 +72,9 @@ class Restaurant {
       'phoneNumber': phoneNumber,
       'website': website,
       'menuItems': menuItems,
-      'averagePrice': averagePrice, // Add this line
+      'averagePrice': averagePrice,
+      'type': type,
+      'favoritedBy': favoritedBy,
     };
   }
 

@@ -39,17 +39,6 @@ class _CityDetailScreenState extends State<CityDetailScreen>
   late AnimationController _animationController;
   final RestaurantService _restaurantService = RestaurantService();
   List<Restaurant> _restaurants = [];
-  final LocationService _locationService = LocationService();
-  List<Location> _locations = [];
-
-  // Add filter variables
-  List<Location> _allLocations = [];
-  List<Location> _filteredLocations = [];
-  String _selectedLocationType = 'All';
-  RangeValues _priceRange = const RangeValues(0, 5000); // Default price range
-  double _minPrice = 0;
-  double _maxPrice = 5000;
-  bool _onlyShowAvailable = true;
 
   // Main app color
   final Color primaryColor = const Color(0xFFFDCB00);
@@ -106,53 +95,18 @@ class _CityDetailScreenState extends State<CityDetailScreen>
       final restaurants = await _restaurantService.getRestaurantsForCity(
         widget.city,
       );
+
       setState(() {
         _restaurants = restaurants;
+        _filterRestaurantsByType(); // Apply filter
         isLoading = false;
       });
+
       // Start animation after data is loaded
       _animationController.reset();
       _animationController.forward();
     } catch (e) {
       print('Error loading restaurants: $e');
-      setState(() {
-        isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _loadLocations() async {
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      final locations = await _locationService.getLocationsForCity(widget.city);
-
-      // Find min and max prices for the range slider
-      if (locations.isNotEmpty) {
-        _minPrice = locations
-            .map((loc) => loc.pricePerNight)
-            .reduce((a, b) => a < b ? a : b);
-        _maxPrice = locations
-            .map((loc) => loc.pricePerNight)
-            .reduce((a, b) => a > b ? a : b);
-
-        // Add some padding to the max price
-        _maxPrice = (_maxPrice * 1.2).roundToDouble();
-        // Update price range
-        _priceRange = RangeValues(_minPrice, _maxPrice);
-      }
-
-      setState(() {
-        _allLocations = locations;
-        _applyFilters(); // Apply filters to populate _filteredLocations
-        isLoading = false;
-      });
-      _animationController.reset();
-      _animationController.forward();
-    } catch (e) {
-      print('Error loading locations: $e');
       setState(() {
         isLoading = false;
       });
@@ -605,223 +559,276 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                 child: const Icon(Icons.add, color: Colors.white),
               )
               : null,
-      body: Column(
-        children: [
-          // City Image Header with Fidelity Points
-          Stack(
-            children: [
-              // City Image as Background (extend it to include the AppBar height)
-              Container(
-                height:
-                    180 +
-                    MediaQuery.of(context).padding.top, // Add status bar height
-                width: double.infinity,
-                child:
-                    widget.city.imageBase64 != null &&
-                            widget.city.imageBase64!.isNotEmpty
-                        ? Image.memory(
-                          base64Decode(widget.city.imageBase64!),
-                          fit: BoxFit.cover,
-                        )
-                        : CachedNetworkImage(
-                          imageUrl: widget.city.imageUrl,
-                          fit: BoxFit.cover,
-                          placeholder:
-                              (context, url) => Container(
-                                color: Colors.grey[800],
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
+      body: Container(
+        color: Colors.white, // Set overall background to white
+        child: Column(
+          children: [
+            // City Image Header with Fidelity Points
+            Stack(
+              children: [
+                // City Image as Background (extend it to include the AppBar height)
+                Container(
+                  height:
+                      180 +
+                      MediaQuery.of(
+                        context,
+                      ).padding.top, // Add status bar height
+                  width: double.infinity,
+                  child:
+                      widget.city.imageBase64 != null &&
+                              widget.city.imageBase64!.isNotEmpty
+                          ? Image.memory(
+                            base64Decode(widget.city.imageBase64!),
+                            fit: BoxFit.cover,
+                          )
+                          : CachedNetworkImage(
+                            imageUrl: widget.city.imageUrl,
+                            fit: BoxFit.cover,
+                            placeholder:
+                                (context, url) => Container(
+                                  color: Colors.grey[800],
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
-                              ),
-                          errorWidget:
-                              (context, url, error) => Container(
-                                color: Colors.grey[800],
-                                child: Icon(
-                                  Icons.image_not_supported,
-                                  size: 40,
-                                  color: Colors.white70,
+                            errorWidget:
+                                (context, url, error) => Container(
+                                  color: Colors.grey[800],
+                                  child: Icon(
+                                    Icons.image_not_supported,
+                                    size: 40,
+                                    color: Colors.white70,
+                                  ),
                                 ),
-                              ),
-                        ),
-              ),
+                          ),
+                ),
 
-              // Dark gradient overlay to ensure text readability
-              Container(
-                height: 180 + MediaQuery.of(context).padding.top,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withOpacity(
-                        0.0,
-                      ), // Transparent at top to not interfere with AppBar gradient
-                      Colors.black.withOpacity(0.5),
-                      Colors.black.withOpacity(0.7),
-                    ],
-                    stops: const [0.0, 0.5, 1.0],
+                // Dark gradient overlay to ensure text readability
+                Container(
+                  height: 180 + MediaQuery.of(context).padding.top,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(
+                          0.0,
+                        ), // Transparent at top to not interfere with AppBar gradient
+                        Colors.black.withOpacity(0.5),
+                        Colors.black.withOpacity(0.7),
+                      ],
+                      stops: const [0.0, 0.5, 1.0],
+                    ),
                   ),
                 ),
-              ),
 
-              // Fidelity Points Card - positioned to account for AppBar height
-              Positioned(
-                bottom: 16,
-                left: 16,
-                right: 16,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
-                        blurRadius: 15,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 16,
-                    horizontal: 16,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: secondaryColor.withOpacity(0.1),
-                              shape: BoxShape.circle,
+                // Fidelity Points Card - positioned to account for AppBar height
+                Positioned(
+                  bottom: 16,
+                  left: 16,
+                  right: 16,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.15),
+                          blurRadius: 15,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 16,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: secondaryColor.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.diamond_outlined,
+                                color: secondaryColor,
+                                size: 28,
+                              ),
                             ),
-                            child: Icon(
-                              Icons.diamond_outlined,
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Number of points',
+                                  style: TextStyle(
+                                    color: Colors.black87,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  DateFormat(
+                                    'dd/MM/yyyy',
+                                  ).format(DateTime.now()),
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        // Points display
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: secondaryColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '$fidelityPoints,00',
+                            style: TextStyle(
                               color: secondaryColor,
-                              size: 28,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Column(
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.white, // Keep consistent white background
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                // Optional border at the bottom for subtle separation
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey[200]!, width: 1),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildModernCategoryButton(
+                    'Tendance',
+                    Icons.trending_up,
+                    primaryColor,
+                  ),
+                  _buildModernCategoryButton(
+                    'Location',
+                    Icons.home,
+                    primaryColor,
+                  ),
+                  _buildModernCategoryButton(
+                    'Restau & café',
+                    Icons.restaurant_menu,
+                    primaryColor,
+                  ),
+                  _buildModernCategoryButton(
+                    'Hawta',
+                    Icons.place,
+                    primaryColor,
+                  ),
+                ],
+              ),
+            ),
+
+            // Content based on selected category - WITH WHITE BACKGROUND
+            Expanded(
+              child:
+                  isLoading
+                      ? Center(
+                        child: CircularProgressIndicator(color: primaryColor),
+                      )
+                      : Container(
+                        color:
+                            Colors.white, // Make ALL content background white
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Number of points',
-                                style: TextStyle(
-                                  color: Colors.black87,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                              // Title for selected category with icon and count
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8.0,
+                                  horizontal: 4.0,
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                DateFormat('dd/MM/yyyy').format(DateTime.now()),
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      // Points display
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: secondaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '$fidelityPoints,00',
-                          style: TextStyle(
-                            color: secondaryColor,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    // Left side: Category icon and title
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          _getCategoryIcon(selectedCategory),
+                                          color: secondaryColor,
+                                          size: 24,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          selectedCategory,
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                            color: secondaryColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
 
-          // Old style Category Filters
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildModernCategoryButton(
-                  'Tendance',
-                  Icons.trending_up,
-                  primaryColor,
-                ),
-                _buildModernCategoryButton(
-                  'Location',
-                  Icons.home,
-                  primaryColor,
-                ),
-                _buildModernCategoryButton(
-                  'Restau & café',
-                  Icons.restaurant_menu,
-                  primaryColor,
-                ),
-                _buildModernCategoryButton('Hawta', Icons.place, primaryColor),
-              ],
-            ),
-          ),
-
-          // Content based on selected category
-          Expanded(
-            child:
-                isLoading
-                    ? Center(
-                      child: CircularProgressIndicator(color: primaryColor),
-                    )
-                    : SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Title for selected category with icon
-                          Row(
-                            children: [
-                              Icon(
-                                _getCategoryIcon(selectedCategory),
-                                color: secondaryColor,
-                                size: 24,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                selectedCategory,
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: secondaryColor,
+                                    // Right side: Item count
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: primaryColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        selectedCategory == 'Restau & café'
+                                            ? '${_filteredRestaurants.length} items'
+                                            : '4 items', // Placeholder count for other categories
+                                        style: TextStyle(
+                                          color: primaryColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
 
                           // Subtle divider
                           Container(
@@ -835,119 +842,26 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                           const SizedBox(height: 20),
 
                           // Content will change based on selected category
-                          selectedCategory == 'Location'
-                              ? Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Locations in ${widget.city.name}',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color:
-                                          Colors
-                                              .grey[700], // Fixed text color from white to grey
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  // Single line horizontal scrollable location type filter with white background
-                                  Container(
-                                    height: 40,
-                                    child: SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      child: Row(
-                                        children:
-                                            [
-                                              'All',
-                                              'Hotel',
-                                              'Hostel',
-                                              'Apartment',
-                                              'Auberge',
-                                              'Villa',
-                                              'Riad',
-                                            ].map((type) {
-                                              final isSelected =
-                                                  _selectedLocationType == type;
-                                              return Padding(
-                                                padding: const EdgeInsets.only(
-                                                  right: 8,
-                                                ),
-                                                child: InkWell(
-                                                  onTap: () {
-                                                    setState(() {
-                                                      _selectedLocationType =
-                                                          type;
-                                                      _applyFilters();
-                                                    });
-                                                  },
-                                                  child: Container(
-                                                    padding:
-                                                        const EdgeInsets.symmetric(
-                                                          horizontal: 12,
-                                                          vertical: 8,
-                                                        ),
-                                                    decoration: BoxDecoration(
-                                                      color:
-                                                          isSelected
-                                                              ? secondaryColor
-                                                              : Colors.white,
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            20,
-                                                          ),
-                                                      border:
-                                                          !isSelected
-                                                              ? Border.all(
-                                                                color:
-                                                                    Colors
-                                                                        .grey[300]!,
-                                                                width: 1,
-                                                              )
-                                                              : null,
-                                                    ),
-                                                    child: Text(
-                                                      type,
-                                                      style: TextStyle(
-                                                        fontSize: 14,
-                                                        color:
-                                                            isSelected
-                                                                ? Colors.white
-                                                                : Colors
-                                                                    .black87,
-                                                        fontWeight:
-                                                            isSelected
-                                                                ? FontWeight
-                                                                    .bold
-                                                                : FontWeight
-                                                                    .normal,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              );
-                                            }).toList(),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              )
-                              : Text(
-                                selectedCategory == 'Restau & café'
-                                    ? 'Restaurants and cafés in ${widget.city.name}'
-                                    : 'Showing the best $selectedCategory options in ${widget.city.name}',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey[700],
-                                ),
-                              ),
+                          Text(
+                            selectedCategory == 'Restau & café'
+                                ? 'Restaurants and cafés in ${widget.city.name}'
+                                : 'Showing the best $selectedCategory options in ${widget.city.name}',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[700],
+                            ),
+                          ),
                           const SizedBox(height: 24),
 
-                          // Dynamic content based on selected category
-                          _buildCategoryContent(),
-                        ],
+                              // Dynamic content based on selected category
+                              _buildCategoryContent(),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1114,54 +1028,80 @@ class _CityDetailScreenState extends State<CityDetailScreen>
   Widget _buildCategoryContent() {
     if (selectedCategory == 'Restau & café') {
       return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Add header with Add button
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Restaurants in ${widget.city.name}',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[800],
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) => AddRestaurantScreen(city: widget.city),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white, // Match the white background
+              borderRadius: BorderRadius.circular(10),
+              // Optional subtle border to separate from content
+              border: Border.all(color: Colors.grey[200]!, width: 1),
+            ),
+            child: SizedBox(
+              height: 40,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _restaurantTypes.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final type = _restaurantTypes[index];
+                  final isSelected = _selectedRestaurantType == type;
+
+                  return InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedRestaurantType = type;
+                        _filterRestaurantsByType();
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected ? secondaryColor : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color:
+                              isSelected ? secondaryColor : Colors.grey[300]!,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _getRestaurantTypeIcon(type),
+                            size: 16,
+                            color: isSelected ? Colors.white : Colors.grey[700],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            type,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight:
+                                  isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                              color:
+                                  isSelected ? Colors.white : Colors.grey[800],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
-                  // Refresh restaurant list if a new restaurant was added
-                  if (result == true) {
-                    _loadRestaurants();
-                  }
                 },
-                icon: Icon(Icons.add_circle, color: primaryColor, size: 20),
-                label: Text(
-                  'Add',
-                  style: TextStyle(
-                    color: primaryColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                style: TextButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  backgroundColor: primaryColor.withOpacity(0.1),
-                ),
               ),
-            ],
+            ),
           ),
-          const SizedBox(height: 16),
+          // REDUCED this spacing from 16 to 8 pixels
+          const SizedBox(height: 8),
 
           // Show empty state or restaurant list
-          _restaurants.isEmpty && !isLoading
+          _filteredRestaurants.isEmpty && !isLoading
               ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1173,7 +1113,9 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'No restaurants found in ${widget.city.name}',
+                      _selectedRestaurantType == 'All'
+                          ? 'No restaurants found in ${widget.city.name}'
+                          : 'No $_selectedRestaurantType establishments found',
                       style: TextStyle(fontSize: 16, color: Colors.grey[700]),
                     ),
                     const SizedBox(height: 12),
@@ -1192,7 +1134,7 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                         }
                       },
                       icon: const Icon(Icons.add),
-                      label: const Text('Add first restaurant'),
+                      label: const Text('Add restaurant'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
                         foregroundColor: Colors.white,
@@ -1203,7 +1145,7 @@ class _CityDetailScreenState extends State<CityDetailScreen>
               )
               : Column(
                 children:
-                    _restaurants
+                    _filteredRestaurants
                         .map((restaurant) => _buildRestaurantItem(restaurant))
                         .toList(),
               ),
@@ -1332,7 +1274,7 @@ class _CityDetailScreenState extends State<CityDetailScreen>
           );
         },
         child: Container(
-          margin: const EdgeInsets.only(bottom: 16),
+          margin: const EdgeInsets.only(bottom: 10),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -1347,47 +1289,54 @@ class _CityDetailScreenState extends State<CityDetailScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Restaurant image with location button overlay
               Stack(
                 children: [
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(16),
                     ),
-                    child: SizedBox(
-                      height: 120,
-                      width: double.infinity,
-                      child:
-                          restaurant.imageUrls.isNotEmpty
-                              ? CachedNetworkImage(
-                                imageUrl: restaurant.imageUrls.first,
-                                fit: BoxFit.cover,
-                                placeholder:
-                                    (context, url) => Container(
-                                      color: Colors.grey[200],
-                                      child: const Center(
-                                        child: CircularProgressIndicator(),
+                    child:
+                        restaurant.imageUrls.isNotEmpty
+                            ? CachedNetworkImage(
+                              imageUrl: restaurant.imageUrls.first,
+                              height: 120,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              placeholder:
+                                  (context, url) => Container(
+                                    height: 120,
+                                    color: Colors.grey[200],
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        color: primaryColor,
                                       ),
                                     ),
-                                errorWidget:
-                                    (context, url, error) => Container(
-                                      color: Colors.grey[200],
-                                      child: const Icon(
-                                        Icons.image_not_supported,
-                                        size: 40,
-                                        color: Colors.grey,
-                                      ),
+                                  ),
+                              errorWidget:
+                                  (context, url, error) => Container(
+                                    height: 120,
+                                    color: Colors.grey[200],
+                                    child: Icon(
+                                      Icons.restaurant_menu,
+                                      size: 40,
+                                      color: Colors.grey[400],
                                     ),
-                              )
-                              : Container(
-                                color: Colors.grey[200],
-                                child: const Icon(
-                                  Icons.image_not_supported,
-                                  size: 40,
-                                  color: Colors.grey,
-                                ),
+                                  ),
+                            )
+                            : Container(
+                              height: 120,
+                              width: double.infinity,
+                              color: Colors.grey[200],
+                              child: Icon(
+                                Icons.restaurant_menu,
+                                size: 40,
+                                color: Colors.grey[400],
                               ),
-                    ),
+                            ),
                   ),
+
+                  // Map location button - KEEP THIS
                   Positioned(
                     top: 10,
                     right: 10,
@@ -1718,13 +1667,6 @@ class _CityDetailScreenState extends State<CityDetailScreen>
     );
   }
 
-  Widget _buildPlaceholder() {
-    return Container(
-      color: Colors.grey[200],
-      child: Icon(Icons.home, size: 40, color: Colors.grey[400]),
-    );
-  }
-
   IconData _getCategoryIcon(String category) {
     switch (category) {
       case 'Tendance':
@@ -1737,6 +1679,23 @@ class _CityDetailScreenState extends State<CityDetailScreen>
         return Icons.place;
       default:
         return Icons.category;
+    }
+  }
+
+  IconData _getRestaurantTypeIcon(String type) {
+    switch (type) {
+      case 'Restaurant':
+        return Icons.restaurant;
+      case 'Café':
+        return Icons.coffee;
+      case 'Fast Food':
+        return Icons.fastfood;
+      case 'Bakery':
+        return Icons.bakery_dining;
+      case 'Bar':
+        return Icons.local_bar;
+      default:
+        return Icons.food_bank; // Default icon for 'All' or unknown types
     }
   }
 

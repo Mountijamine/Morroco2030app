@@ -7,19 +7,29 @@ class MenuService {
   // Get all menu items for a restaurant
   Future<List<MenuItem>> getMenuForRestaurant(String restaurantId) async {
     try {
+      print('Querying Firestore for restaurantId: $restaurantId');
+
+      // Use a simple query without ordering to avoid index requirements
       final querySnapshot =
           await _firestore
               .collection('menuItems')
               .where('restaurantId', isEqualTo: restaurantId)
-              .orderBy('category')
               .get();
 
-      return querySnapshot.docs
-          .map((doc) => MenuItem.fromFirestore(doc))
-          .toList();
+      final results =
+          querySnapshot.docs.map((doc) => MenuItem.fromFirestore(doc)).toList();
+
+      print(
+        'Found ${results.length} menu items for restaurantId: $restaurantId',
+      );
+
+      // Sort the results in memory instead of in the query
+      results.sort((a, b) => a.category.compareTo(b.category));
+
+      return results;
     } catch (e) {
       print('Error fetching menu items: $e');
-      return [];
+      rethrow; // Allow proper error handling upstream
     }
   }
 
