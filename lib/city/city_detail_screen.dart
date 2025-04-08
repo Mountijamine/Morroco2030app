@@ -847,8 +847,77 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                                     ),
                                   ),
                                   const SizedBox(height: 12),
-                                  // Location type filter moved here
-                                  _buildLocationTypeSelector(),
+                                  // Single line horizontal scrollable location type filter
+                                  Container(
+                                    height: 40,
+                                    child: SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        children:
+                                            [
+                                              'All',
+                                              'Hotel',
+                                              'Hostel',
+                                              'Apartment',
+                                              'Auberge',
+                                              'Villa',
+                                              'Riad',
+                                            ].map((type) {
+                                              final isSelected =
+                                                  _selectedLocationType == type;
+                                              return Padding(
+                                                padding: const EdgeInsets.only(
+                                                  right: 8,
+                                                ),
+                                                child: InkWell(
+                                                  onTap: () {
+                                                    setState(() {
+                                                      _selectedLocationType =
+                                                          type;
+                                                      _applyFilters();
+                                                    });
+                                                  },
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 12,
+                                                          vertical: 8,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          isSelected
+                                                              ? secondaryColor
+                                                              : Colors
+                                                                  .grey[200],
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            20,
+                                                          ),
+                                                    ),
+                                                    child: Text(
+                                                      type,
+                                                      style: TextStyle(
+                                                        fontSize: 14,
+                                                        color:
+                                                            isSelected
+                                                                ? Colors.white
+                                                                : Colors
+                                                                    .black87,
+                                                        fontWeight:
+                                                            isSelected
+                                                                ? FontWeight
+                                                                    .bold
+                                                                : FontWeight
+                                                                    .normal,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            }).toList(),
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               )
                               : Text(
@@ -1146,7 +1215,7 @@ class _CityDetailScreenState extends State<CityDetailScreen>
     } else if (selectedCategory == 'Location') {
       return Column(
         children: [
-          // Header with Add button remains the same
+          // Header with Add button
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1163,8 +1232,7 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder:
-                          (context) => AddLocationScreen(city: widget.city),
+                      builder: (context) => AddLocationScreen(city: widget.city),
                     ),
                   );
                   if (result == true) {
@@ -1190,7 +1258,7 @@ class _CityDetailScreenState extends State<CityDetailScreen>
           ),
           const SizedBox(height: 16),
 
-          // Keep the results count
+          // Results count
           Text(
             'Showing ${_filteredLocations.length} locations',
             style: TextStyle(
@@ -1202,17 +1270,30 @@ class _CityDetailScreenState extends State<CityDetailScreen>
 
           const SizedBox(height: 16),
 
-          // Location list remains unchanged
+          // Location list
           _filteredLocations.isEmpty && !isLoading
               ? Center(
-                // Empty state UI remains the same
-              )
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.home_work,
+                        size: 48,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No locations found in ${widget.city.name}',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                      ),
+                    ],
+                  ),
+                )
               : Column(
-                children:
-                    _filteredLocations
-                        .map((location) => _buildLocationItem(location))
-                        .toList(),
-              ),
+                  children: _filteredLocations
+                      .map((location) => _buildLocationItem(location))
+                      .toList(),
+                ),
         ],
       );
     } else {
