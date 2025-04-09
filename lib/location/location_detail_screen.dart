@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter_application_1/location/location_model.dart';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -182,9 +185,6 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
 
                   const Divider(height: 40),
 
-                  // Quick Info Highlight
-                  _buildQuickInfoSection(),
-
                   const Divider(height: 40),
 
                   // Description
@@ -240,7 +240,27 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
           ),
         ),
 
-        // Image navigation indicators
+        // Image counter indicator
+        Positioned(
+          top: 16,
+          right: 16,
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.6),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              '${_currentImageIndex + 1}/${widget.location.imageUrls.length}',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+
+        // Pagination dots
         Positioned(
           bottom: 16,
           left: 0,
@@ -250,113 +270,81 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
             children: List.generate(
               widget.location.imageUrls.length,
               (index) => Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
                 width: 8,
                 height: 8,
+                margin: EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color:
                       _currentImageIndex == index
-                          ? Colors.white
-                          : Colors.white.withOpacity(0.5),
+                          ? primaryColor
+                          : Colors.white.withOpacity(0.6),
                 ),
               ),
             ),
           ),
         ),
 
-        // All Photos Button
-        Positioned(
-          bottom: 16,
-          right: 16,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.6),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.grid_view, color: Colors.white, size: 16),
-                const SizedBox(width: 4),
-                Text(
-                  'All Photos',
-                  style: TextStyle(
+        // Navigation arrows
+        if (widget.location.imageUrls.length > 1) ...[
+          // Left arrow
+          Positioned(
+            left: 16,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap:
+                    _currentImageIndex > 0
+                        ? () => setState(() => _currentImageIndex--)
+                        : null,
+                child: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.4),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.arrow_back_ios_new,
                     color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                    size: 18,
                   ),
                 ),
-              ],
+              ),
             ),
           ),
-        ),
 
-        // Left navigation
-        Positioned(
-          left: 16,
-          top: 0,
-          bottom: 0,
-          child: Center(
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _currentImageIndex =
-                      _currentImageIndex > 0
-                          ? _currentImageIndex - 1
-                          : widget.location.imageUrls.length - 1;
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.3),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.arrow_back_ios,
-                  color: Colors.white,
-                  size: 18,
+          // Right arrow
+          Positioned(
+            right: 16,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap:
+                    _currentImageIndex < widget.location.imageUrls.length - 1
+                        ? () => setState(() => _currentImageIndex++)
+                        : null,
+                child: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.4),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.arrow_forward_ios,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-
-        // Right navigation
-        Positioned(
-          right: 16,
-          top: 0,
-          bottom: 0,
-          child: Center(
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _currentImageIndex =
-                      (_currentImageIndex + 1) %
-                      widget.location.imageUrls.length;
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.3),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.arrow_forward_ios,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-            ),
-          ),
-        ),
+        ],
       ],
     );
   }
 
-  // Replace the _buildFullScreenImage method
   Widget _buildFullScreenImage(String imageString) {
     try {
       String cleanBase64 = imageString;
@@ -367,20 +355,66 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
 
       final Uint8List bytes = base64Decode(cleanBase64);
 
-      return Image.memory(
-        bytes,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        errorBuilder: (context, error, stackTrace) {
-          print('Image error: $error');
-          // Empty container without icon
-          return Container(color: Colors.grey[200]);
-        },
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          // Placeholder
+          Container(color: Colors.grey[200]),
+
+          // Actual image
+          Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+              if (wasSynchronouslyLoaded) return child;
+              return AnimatedOpacity(
+                opacity: frame != null ? 1 : 0,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOut,
+                child: child,
+              );
+            },
+            errorBuilder: (context, error, stackTrace) {
+              print('Image error: $error');
+              return Container(
+                color: Colors.grey[200],
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      color: Colors.grey[400],
+                      size: 40,
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Unable to load image',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       );
     } catch (e) {
       print('Base64 error: $e');
-      // Empty container without icon
-      return Container(color: Colors.grey[200]);
+      return Container(
+        color: Colors.grey[200],
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, color: Colors.grey[400], size: 40),
+            SizedBox(height: 8),
+            Text(
+              'Invalid image format',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      );
     }
   }
 
@@ -395,7 +429,7 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
             Icon(Icons.location_on, size: 16, color: Colors.grey[700]),
             const SizedBox(width: 4),
             Text(
-              'City, Morocco',
+              'City, Casablanca',
               style: TextStyle(color: Colors.grey[700], fontSize: 14),
             ),
           ],
@@ -445,176 +479,12 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
           ],
         ),
 
-        // Rating row
+        // Stars row (remplacement des reviews, share et save)
         const SizedBox(height: 16),
-        Wrap(
-          spacing: 16,
-          runSpacing: 12,
-          children: [
-            // Rating section
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.star, size: 18, color: Colors.black),
-                const SizedBox(width: 4),
-                Text(
-                  '${widget.location.rating}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '(${(widget.location.rating * 10).toInt()} reviews)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ],
-            ),
-
-            // Actions row
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Share button
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.ios_share, size: 18, color: Colors.black),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'Share',
-                      style: TextStyle(
-                        decoration: TextDecoration.underline,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 16),
-                // Save button
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.favorite_border, size: 18, color: Colors.black),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'Save',
-                      style: TextStyle(
-                        decoration: TextDecoration.underline,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // Quick Info Section (Highlights)
-  Widget _buildQuickInfoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Property highlights
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey[300]!),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.hotel, color: secondaryColor),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Entire rental unit',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Your own space, with all amenities',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.cleaning_services, color: secondaryColor),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Enhanced Clean',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'This Host follows industry cleaning standards',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.location_on, color: secondaryColor),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Great location',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '90% of recent guests rated the location 5 stars',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
+        Row(
+          children: List.generate(
+            5, // Nombre d'étoiles
+            (index) => Icon(Icons.star, color: Colors.amber, size: 20),
           ),
         ),
       ],
@@ -635,42 +505,12 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
           widget.location.description,
           style: TextStyle(fontSize: 16, height: 1.6, color: Colors.grey[800]),
         ),
-        const SizedBox(height: 16),
-        TextButton(
-          onPressed: () {},
-          child: Text(
-            'Show more >',
-            style: TextStyle(
-              color: Colors.black,
-              fontWeight: FontWeight.w500,
-              decoration: TextDecoration.underline,
-            ),
-          ),
-          style: TextButton.styleFrom(
-            padding: EdgeInsets.zero,
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
       ],
     );
   }
 
   // Amenities Section with Icons
   Widget _buildAmenitiesSection() {
-    // Map of amenity names to icons
-    final amenityIcons = {
-      'Wifi': Icons.wifi,
-      'Parking': Icons.local_parking,
-      'Kitchen': Icons.kitchen,
-      'TV': Icons.tv,
-      'Pool': Icons.pool,
-      'AC': Icons.ac_unit,
-      'Washing Machine': Icons.local_laundry_service,
-      'Breakfast': Icons.breakfast_dining,
-      // Add more mappings as needed
-    };
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -679,52 +519,7 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 4,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-          ),
-          itemCount:
-              widget.location.amenities.length > 6
-                  ? 6
-                  : widget.location.amenities.length,
-          itemBuilder: (context, index) {
-            final amenity = widget.location.amenities[index];
-            return Row(
-              children: [
-                Icon(
-                  amenityIcons[amenity] ?? Icons.check_circle_outline,
-                  color: Colors.black,
-                  size: 22,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(amenity, style: const TextStyle(fontSize: 16)),
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 16),
-        if (widget.location.amenities.length > 6)
-          OutlinedButton(
-            onPressed: () {
-              // Show all amenities dialog
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.black87,
-              side: const BorderSide(color: Colors.black87),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: const Text('Show all amenities'),
-          ),
+        // Ajoutez d'autres widgets ici si nécessaire
       ],
     );
   }
@@ -747,6 +542,8 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
               child: Text(
                 widget.location.address,
                 style: const TextStyle(fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
               ),
             ),
           ],
@@ -866,24 +663,29 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
   // Host stat helper
   Widget _buildHostStat(IconData icon, String value, String label) {
     return Row(
-      mainAxisSize: MainAxisSize.min, // Only take needed space
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 18),
         const SizedBox(width: 4),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              label,
-              style: TextStyle(color: Colors.grey[600], fontSize: 14),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                label,
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -942,18 +744,20 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Use Wrap instead of Row for price display
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.end,
-                      spacing: 4,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          '${widget.location.pricePerNight.toStringAsFixed(0)} DH',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20,
+                        Flexible(
+                          child: Text(
+                            '${widget.location.pricePerNight.toStringAsFixed(0)} DH',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        const SizedBox(width: 4),
                         const Text('night', style: TextStyle(fontSize: 16)),
                       ],
                     ),
@@ -1323,7 +1127,6 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
     );
   }
 
-  // Replace the _buildThumbnailImage method
   Widget _buildThumbnailImage(String imageString) {
     try {
       String cleanBase64 = imageString;
@@ -1338,32 +1141,208 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
         bytes,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
-          // Empty container without icon
-          return Container(color: Colors.grey[200]);
+          return Container(
+            color: Colors.grey[200],
+            child: const Icon(Icons.broken_image, size: 20),
+          );
         },
       );
     } catch (e) {
       print('Error displaying thumbnail: $e');
-      // Empty container without icon
-      return Container(color: Colors.grey[200]);
+      return Container(
+        color: Colors.grey[200],
+        child: const Icon(Icons.broken_image, size: 20),
+      );
     }
   }
 
   // Your existing methods
   Future<void> _openInMaps() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Maps functionality disabled in offline mode'),
-        behavior: SnackBarBehavior.floating,
-      ),
+    final latitude = widget.location.location.latitude;
+    final longitude = widget.location.location.longitude;
+    final url = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude',
     );
+
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Could not open maps')));
+      }
+    }
   }
 
   Future<void> _callLocation() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Call functionality disabled in offline mode'),
-        behavior: SnackBarBehavior.floating,
+    final url = Uri.parse('tel:${widget.location.phoneNumber}');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Could not make call')));
+      }
+    }
+  }
+
+  void _showAllPhotos(BuildContext context) {
+    showDialog(
+      context: context,
+      useSafeArea: false,
+      builder:
+          (context) => Dialog.fullscreen(
+            child: Stack(
+              children: [
+                // Photos gallery
+                PageView.builder(
+                  controller: PageController(initialPage: _currentImageIndex),
+                  itemCount: widget.location.imageUrls.length,
+                  onPageChanged: (index) {
+                    setState(() {
+                      _currentImageIndex = index;
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    return GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        color: Colors.black,
+                        child: Center(
+                          child: InteractiveViewer(
+                            minScale: 0.5,
+                            maxScale: 3.0,
+                            child: _buildFullScreenImage(
+                              widget.location.imageUrls[index],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                // Close button
+                Positioned(
+                  top: 40,
+                  left: 16,
+                  child: IconButton(
+                    icon: Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.4),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.close, color: Colors.white),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+
+                // Image counter indicator
+                Positioned(
+                  top: 40,
+                  right: 16,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      '${_currentImageIndex + 1}/${widget.location.imageUrls.length}',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Navigation arrows
+                if (widget.location.imageUrls.length > 1) ...[
+                  // Left arrow
+                  Positioned(
+                    left: 16,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: GestureDetector(
+                        onTap:
+                            _currentImageIndex > 0
+                                ? () => setState(() => _currentImageIndex--)
+                                : null,
+                        child: Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.4),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.arrow_back_ios_new,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Right arrow
+                  Positioned(
+                    right: 16,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: GestureDetector(
+                        onTap:
+                            _currentImageIndex <
+                                    widget.location.imageUrls.length - 1
+                                ? () => setState(() => _currentImageIndex++)
+                                : null,
+                        child: Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.4),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.arrow_forward_ios,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+    );
+  }
+
+  Widget _buildActionButton(IconData icon, String text) {
+    return InkWell(
+      onTap: () {
+        // Action functionality
+      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: Colors.black),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: const TextStyle(
+              decoration: TextDecoration.underline,
+              fontSize: 16,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
