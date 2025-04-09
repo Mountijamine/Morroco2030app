@@ -40,6 +40,28 @@ class _CityDetailScreenState extends State<CityDetailScreen>
   final RestaurantService _restaurantService = RestaurantService();
   List<Restaurant> _restaurants = [];
 
+  // Add these variables to your class
+  final LocationService _locationService = LocationService();
+  List<Location> _allLocations = [];
+  List<Location> _filteredLocations = [];
+  String _selectedLocationType = 'All';
+  double _minPrice = 100;
+  double _maxPrice = 1000;
+  RangeValues _priceRange = RangeValues(100, 1000);
+  bool _onlyShowAvailable = true;
+
+  // Add these variables at the top of your class with other declarations
+  List<Restaurant> _filteredRestaurants = [];
+  String _selectedRestaurantType = 'All';
+  final List<String> _restaurantTypes = [
+    'All',
+    'Restaurant',
+    'Café',
+    'Fast Food',
+    'Bakery',
+    'Bar',
+  ];
+
   // Main app color
   final Color primaryColor = const Color(0xFFFDCB00);
   final Color secondaryColor = const Color(0xFF065d67);
@@ -109,6 +131,37 @@ class _CityDetailScreenState extends State<CityDetailScreen>
       print('Error loading restaurants: $e');
       setState(() {
         isLoading = false;
+      });
+    }
+  }
+
+  // Add the missing method
+  Future<void> _loadLocations() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      // Change from widget.city.id to widget.city
+      final locations = await _locationService.getLocationsForCity(
+        widget.city, // Pass the entire City object, not just the ID
+      );
+
+      setState(() {
+        _allLocations = locations;
+        _filteredLocations = locations; // Initially show all locations
+        isLoading = false;
+      });
+
+      // Start animation after data is loaded
+      _animationController.reset();
+      _animationController.forward();
+    } catch (e) {
+      print('Error loading locations: $e');
+      setState(() {
+        isLoading = false;
+        _allLocations = [];
+        _filteredLocations = [];
       });
     }
   }
@@ -477,6 +530,21 @@ class _CityDetailScreenState extends State<CityDetailScreen>
     );
   }
 
+  // Add this method to your class
+  void _filterRestaurantsByType() {
+    setState(() {
+      if (_selectedRestaurantType == 'All') {
+        _filteredRestaurants = _restaurants;
+      } else {
+        _filteredRestaurants =
+            _restaurants.where((restaurant) {
+              return restaurant.type.toLowerCase() ==
+                  _selectedRestaurantType.toLowerCase();
+            }).toList();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -830,28 +898,136 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                                 ),
                               ),
 
-                          // Subtle divider
-                          Container(
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: primaryColor,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
+                              // Subtle divider
+                              Container(
+                                width: 40,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: primaryColor,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
 
-                          // Content will change based on selected category
-                          Text(
-                            selectedCategory == 'Restau & café'
-                                ? 'Restaurants and cafés in ${widget.city.name}'
-                                : 'Showing the best $selectedCategory options in ${widget.city.name}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
+                              // Content will change based on selected category
+                              selectedCategory == 'Location'
+                                  ? Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: Colors.grey[200]!,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: SizedBox(
+                                      height: 40,
+                                      child: ListView.separated(
+                                        scrollDirection: Axis.horizontal,
+                                        itemCount:
+                                            [
+                                              'All',
+                                              'Hotel',
+                                              'Hostel',
+                                              'Apartment',
+                                              'Auberge',
+                                              'Villa',
+                                              'Riad',
+                                            ].length,
+                                        separatorBuilder:
+                                            (context, index) =>
+                                                const SizedBox(width: 8),
+                                        itemBuilder: (context, index) {
+                                          final type =
+                                              [
+                                                'All',
+                                                'Hotel',
+                                                'Hostel',
+                                                'Apartment',
+                                                'Auberge',
+                                                'Villa',
+                                                'Riad',
+                                              ][index];
+                                          final isSelected =
+                                              _selectedLocationType == type;
+
+                                          return InkWell(
+                                            onTap: () {
+                                              setState(() {
+                                                _selectedLocationType = type;
+                                                _applyFilters();
+                                              });
+                                            },
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 6,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color:
+                                                    isSelected
+                                                        ? secondaryColor
+                                                        : Colors.grey[100],
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color:
+                                                      isSelected
+                                                          ? secondaryColor
+                                                          : Colors.grey[300]!,
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    _getLocationTypeIcon(type),
+                                                    size: 16,
+                                                    color:
+                                                        isSelected
+                                                            ? Colors.white
+                                                            : Colors.grey[700],
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    type,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          isSelected
+                                                              ? FontWeight.bold
+                                                              : FontWeight
+                                                                  .normal,
+                                                      color:
+                                                          isSelected
+                                                              ? Colors.white
+                                                              : Colors
+                                                                  .grey[800],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  )
+                                  : Text(
+                                    selectedCategory == 'Restau & café'
+                                        ? 'Restaurants and cafés in ${widget.city.name}'
+                                        : 'Showing the best $selectedCategory options in ${widget.city.name}',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey[700],
+                                    ),
+                                  ),
+                              const SizedBox(height: 24),
 
                               // Dynamic content based on selected category
                               _buildCategoryContent(),
@@ -1196,21 +1372,11 @@ class _CityDetailScreenState extends State<CityDetailScreen>
               ),
             ],
           ),
+
+          // No filters here anymore - they've been moved up
           const SizedBox(height: 16),
 
-          // Results count
-          Text(
-            'Showing ${_filteredLocations.length} locations',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: secondaryColor,
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Location list
+          // Location list - directly show content without the count text
           _filteredLocations.isEmpty && !isLoading
               ? Center(
                 child: Column(
@@ -1509,27 +1675,49 @@ class _CityDetailScreenState extends State<CityDetailScreen>
                           'Location ${location.name} has ${location.imageUrls.length} images',
                         );
                         if (location.imageUrls.isNotEmpty) {
-                          return CachedNetworkImage(
-                            imageUrl: location.imageUrls.first,
-                            fit: BoxFit.cover,
-                            placeholder:
-                                (context, url) => Container(
-                                  color: Colors.grey[200],
-                                  child: Center(
-                                    child: CircularProgressIndicator(
-                                      color: primaryColor,
-                                      strokeWidth: 2,
-                                    ),
+                          final imageUrl = location.imageUrls.first;
+                          // Check if it's a base64 image
+                          if (isBase64Image(imageUrl)) {
+                            try {
+                              String cleanBase64 = imageUrl;
+                              if (imageUrl.contains(',')) {
+                                cleanBase64 = imageUrl.split(',').last;
+                              }
+                              cleanBase64 = cleanBase64.trim();
+                              
+                              return Image.memory(
+                                base64Decode(cleanBase64),
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  print('Base64 image error for ${location.name}: $error');
+                                  return _buildDefaultLocationImage(location.type);
+                                },
+                              );
+                            } catch (e) {
+                              print('Base64 decoding error: $e');
+                              return _buildDefaultLocationImage(location.type);
+                            }
+                          } else {
+                            // It's a URL
+                            return CachedNetworkImage(
+                              imageUrl: imageUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: Colors.grey[200],
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: primaryColor,
+                                    strokeWidth: 2,
                                   ),
                                 ),
-                            errorWidget: (context, url, error) {
-                              // Print error for debugging
-                              print('Image error for ${location.name}: $error');
-                              return _buildDefaultLocationImage(location.type);
-                            },
-                          );
+                              ),
+                              errorWidget: (context, url, error) {
+                                print('URL image error for ${location.name}: $error');
+                                return _buildDefaultLocationImage(location.type);
+                              },
+                            );
+                          }
                         } else {
-                          // No image URLs available
                           return _buildDefaultLocationImage(location.type);
                         }
                       },
@@ -1699,6 +1887,25 @@ class _CityDetailScreenState extends State<CityDetailScreen>
     }
   }
 
+  IconData _getLocationTypeIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'hotel':
+        return Icons.hotel;
+      case 'hostel':
+        return Icons.night_shelter;
+      case 'apartment':
+        return Icons.apartment;
+      case 'auberge':
+        return Icons.home;
+      case 'villa':
+        return Icons.house;
+      case 'riad':
+        return Icons.home_work;
+      default:
+        return Icons.place; // Default icon for 'All' or unknown types
+    }
+  }
+
   Color _getCategoryColor(String category) {
     return secondaryColor; // Using a consistent color scheme
   }
@@ -1774,5 +1981,39 @@ class _CityDetailScreenState extends State<CityDetailScreen>
         ],
       ),
     );
+  }
+
+  // Add this method to fix the undefined _buildPlaceholder error
+  Widget _buildPlaceholder() {
+    return Container(
+      color: Colors.grey[200],
+      child: Center(
+        child: Icon(
+          Icons.image_not_supported,
+          size: 40,
+          color: Colors.grey[400],
+        ),
+      ),
+    );
+  }
+
+  bool isBase64Image(String str) {
+    try {
+      if (str.startsWith('data:image')) {
+        return true;
+      }
+      
+      // Clean the string if it contains a comma (data URL format)
+      if (str.contains(',')) {
+        str = str.split(',').last;
+      }
+      
+      str = str.trim();
+      // Try to decode it
+      base64Decode(str);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 }

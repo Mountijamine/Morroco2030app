@@ -51,12 +51,8 @@ dependencies:
   geocoding: ^2.1.0
   cached_network_image: ^3.2.0
   url_launcher: ^6.1.5
-<<<<<<< HEAD
   flutter_image_slideshow: ^0.1.6
   flutter_carousel_slider: ^1.1.0
-=======
-  smooth_page_indicator: ^1.0.0+2
->>>>>>> ad7e6043a4f06c3a38b8a53581d3f76b0d22dbb6
 
 dev_dependencies:
   flutter_test:
