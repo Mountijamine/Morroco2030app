@@ -44,9 +44,11 @@ class Location {
       address: data['address'] ?? '',
       rating: (data['rating'] ?? 0.0).toDouble(),
       location: data['location'] ?? const GeoPoint(0, 0),
-      imageUrls: (data['imageUrls'] as List<dynamic>?)
-          ?.map((dynamic item) => item.toString())
-          .toList() ?? [],
+      imageUrls:
+          (data['imageUrls'] as List<dynamic>?)
+              ?.map((dynamic item) => item.toString())
+              .toList() ??
+          [],
       description: data['description'] ?? '',
       type: data['type'] ?? '',
       phoneNumber: data['phoneNumber'] ?? '',
