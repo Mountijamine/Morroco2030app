@@ -98,4 +98,56 @@ class Location {
       'isAvailable': isAvailable,
     };
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'cityId': cityId,
+      'address': address,
+      'rating': rating,
+      'location': location,
+      'imageUrls': imageUrls,
+      'description': description,
+      'type': type,
+      'phoneNumber': phoneNumber,
+      'website': website,
+      'pricePerNight': pricePerNight,
+      'amenities': amenities,
+      'numberOfRooms': numberOfRooms,
+    };
+  }
+
+  Location copyWith({
+    String? id,
+    String? name,
+    String? cityId,
+    String? address,
+    double? rating,
+    GeoPoint? location,
+    List<String>? imageUrls,
+    String? description,
+    String? type,
+    String? phoneNumber,
+    String? website,
+    double? pricePerNight,
+    List<String>? amenities,
+    int? numberOfRooms,
+  }) {
+    return Location(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      cityId: cityId ?? this.cityId,
+      address: address ?? this.address,
+      rating: rating ?? this.rating,
+      location: location ?? this.location,
+      imageUrls: imageUrls ?? this.imageUrls,
+      description: description ?? this.description,
+      type: type ?? this.type,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      website: website ?? this.website,
+      pricePerNight: pricePerNight ?? this.pricePerNight,
+      amenities: amenities ?? this.amenities,
+      numberOfRooms: numberOfRooms ?? this.numberOfRooms,
+    );
+  }
 }

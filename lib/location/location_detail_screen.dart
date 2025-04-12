@@ -174,46 +174,19 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
             // Image Gallery - Airbnb Style
             _buildImageGallery(),
 
+            // Add the new booking info section
+            _buildBookingInfoSection(),
+
             // Main Content
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title & Host Section
-                  _buildTitleSection(),
-
-                  const Divider(height: 40),
-
-                  // Property Types Section (NEW)
-                  _buildPropertyTypesSection(),
-
-                  const Divider(height: 40),
-
-                  // Description
+                  // Description Section - Empty
                   _buildDescriptionSection(),
 
-                  const Divider(height: 40),
-
-                  // Amenities Section
-                  _buildAmenitiesSection(),
-
-                  const Divider(height: 40),
-
-                  // Location on Map
-                  _buildLocationSection(),
-
-                  const Divider(height: 40),
-
-                  // Host Profile Section
-                  _buildHostSection(),
-
-                  const Divider(height: 40),
-
-                  // Availability Calendar (Optional)
-                  _buildAvailabilitySection(),
-
-                  // Extra space at bottom to account for floating button
+                  // Extra space at bottom for floating button
                   const SizedBox(height: 80),
                 ],
               ),
@@ -349,77 +322,70 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
   }
 
   Widget _buildFullScreenImage(String imageString) {
-    try {
-      String cleanBase64 = imageString;
-      if (imageString.contains(',')) {
-        cleanBase64 = imageString.split(',').last;
-      }
-      cleanBase64 = cleanBase64.trim();
-
-      final Uint8List bytes = base64Decode(cleanBase64);
-
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          // Placeholder
-          Container(color: Colors.grey[200]),
-
-          // Actual image
-          Image.memory(
-            bytes,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-              if (wasSynchronouslyLoaded) return child;
-              return AnimatedOpacity(
-                opacity: frame != null ? 1 : 0,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOut,
-                child: child,
-              );
-            },
-            errorBuilder: (context, error, stackTrace) {
-              print('Image error: $error');
-              return Container(
-                color: Colors.grey[200],
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      color: Colors.grey[400],
-                      size: 40,
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Unable to load image',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      );
-    } catch (e) {
-      print('Base64 error: $e');
-      return Container(
-        color: Colors.grey[200],
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, color: Colors.grey[400], size: 40),
-            SizedBox(height: 8),
-            Text(
-              'Invalid image format',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-          ],
-        ),
-      );
+  try {
+    String cleanBase64 = imageString;
+    
+    // Handle all possible formats of base64 strings
+    if (imageString.contains(',')) {
+      cleanBase64 = imageString.split(',').last;
     }
+    cleanBase64 = cleanBase64.trim();
+    
+    // Try to decode the image
+    final Uint8List bytes = base64Decode(cleanBase64);
+    
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Placeholder
+        Container(color: Colors.grey[200]),
+        
+        // Actual image
+        Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+            if (wasSynchronouslyLoaded) return child;
+            return AnimatedOpacity(
+              opacity: frame != null ? 1 : 0,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+              child: child,
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            print('Image error: $error');
+            return Container(
+              color: Colors.grey[200],
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, color: Colors.grey[400], size: 40),
+                  SizedBox(height: 8),
+                  Text('Unable to load image', style: TextStyle(color: Colors.grey[600])),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  } catch (e) {
+    print('Base64 error: $e');
+    return Container(
+      color: Colors.grey[200],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, color: Colors.grey[400], size: 40),
+          SizedBox(height: 8),
+          Text('Invalid image format', style: TextStyle(color: Colors.grey[600])),
+        ],
+      ),
+    );
   }
+}
 
   // Title Section (Airbnb style with breadcrumb location and title)
   Widget _buildTitleSection() {
@@ -473,22 +439,10 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
     );
   }
 
-  // Description Section
+  // Description Section - All content removed
   Widget _buildDescriptionSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'About this place',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          widget.location.description,
-          style: TextStyle(fontSize: 16, height: 1.6, color: Colors.grey[800]),
-        ),
-      ],
-    );
+    // Return an empty container since we're removing all the content
+    return Container();
   }
 
   // Display property type images with tap functionality
@@ -753,276 +707,22 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
     );
   }
 
-  // Amenities Section with Icons
+  // Make these methods return empty containers
   Widget _buildAmenitiesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'What this place offers',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        // Ajoutez d'autres widgets ici si nécessaire
-      ],
-    );
+    return Container();
   }
 
-  // Location Section with Map
   Widget _buildLocationSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Where you\'ll be',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Icon(Icons.location_on, color: secondaryColor),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                widget.location.address,
-                style: const TextStyle(fontSize: 16),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 2,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        // Map Preview - Consider using a real map here
-        Container(
-          height: 200,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: Colors.grey[200],
-          ),
-          child: Stack(
-            children: [
-              // This is a placeholder - use GoogleMap widget for a real map
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.map, size: 50, color: Colors.grey[400]),
-                    const SizedBox(height: 8),
-                    Text('Map view', style: TextStyle(color: Colors.grey[600])),
-                  ],
-                ),
-              ),
-              Positioned.fill(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: _openInMaps,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'Exact location provided after booking',
-          style: TextStyle(color: Colors.grey[600], fontSize: 14),
-        ),
-      ],
-    );
+    return Container();
   }
 
-  // Host Section
   Widget _buildHostSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            // Host image
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.grey[200],
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: const Center(
-                child: Icon(Icons.person, size: 40, color: Colors.grey),
-              ),
-            ),
-            const SizedBox(width: 16),
-            // Host info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Hosted by Local Host',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Member since ${DateFormat('MMMM yyyy').format(DateTime.now().subtract(const Duration(days: 365)))}',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        // Host stats - Fixing overflow issue
-        Wrap(
-          spacing: 24, // Space between items
-          runSpacing: 16, // Space between rows when wrapping
-          children: [
-            _buildHostStat(Icons.star, '4.92', 'Rating'),
-            _buildHostStat(Icons.verified, '39', 'Reviews'),
-            _buildHostStat(Icons.verified_user, 'Identity', 'Verified'),
-          ],
-        ),
-        const SizedBox(height: 20),
-        // Contact Host Button
-        OutlinedButton(
-          onPressed: _callLocation,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.black87,
-            side: const BorderSide(color: Colors.black87),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          child: const Text('Contact host'),
-        ),
-      ],
-    );
+    return Container();
   }
 
-  // Host stat helper
-  Widget _buildHostStat(IconData icon, String value, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 18),
-        const SizedBox(width: 4),
-        Flexible(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-              Text(
-                label,
-                style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Availability Section
+  // Make this method return an empty container
   Widget _buildAvailabilitySection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Availability',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color:
-                    widget.location.isAvailable
-                        ? Colors.green[50]
-                        : Colors.red[50],
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color:
-                      widget.location.isAvailable ? Colors.green : Colors.red,
-                ),
-              ),
-              child: Text(
-                widget.location.isAvailable ? 'Available' : 'Not Available',
-                style: TextStyle(
-                  color:
-                      widget.location.isAvailable ? Colors.green : Colors.red,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        // Price information
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey[300]!),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.attach_money, color: secondaryColor),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            '${widget.location.pricePerNight.toStringAsFixed(0)} DH',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Text('night', style: TextStyle(fontSize: 16)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Minimum stay: 1 night',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Cleaning fee: 150 DH',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+    return Container();
   }
 
   void _showBookingDialog(BuildContext context) {
@@ -1586,6 +1286,126 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
             ),
             overflow: TextOverflow.ellipsis,
           ),
+        ],
+      ),
+    );
+  }
+
+  // Add this new method for booking info
+  Widget _buildBookingInfoSection() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Photos heading
+          Text(
+            'Photos',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.orange[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Address section
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Adresse',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange[700],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.location.address,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: Icon(Icons.map, color: secondaryColor, size: 20),
+                      onPressed: _openInMaps,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Contact person section
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Personne à contacter',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange[700],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                // Use a placeholder since contactPerson isn't in the Location model
+                'Mohamed Lebradi',
+                style: const TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Conditions section
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Conditions',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange[700],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Appartement pour famille',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'espace familiale',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'couple marié (présentation acte obligatoire)',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const Divider(height: 32),
         ],
       ),
     );
